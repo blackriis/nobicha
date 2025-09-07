@@ -2,6 +2,7 @@
 
 export type UserRole = 'employee' | 'admin'
 export type PayrollStatus = 'active' | 'completed'
+export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'CALCULATE'
 
 export interface Branch {
   id: string
@@ -107,6 +108,20 @@ export interface PayrollDetail {
   created_at: string
 }
 
+export interface AuditLog {
+  id: string
+  user_id: string
+  action: AuditAction
+  table_name: string
+  record_id?: string
+  old_values?: any
+  new_values?: any
+  ip_address?: string
+  user_agent?: string
+  description?: string
+  created_at: string
+}
+
 // Insert types (without id and created_at for new records)
 export type BranchInsert = Omit<Branch, 'id' | 'created_at'>
 export type UserInsert = Omit<User, 'id' | 'created_at'>
@@ -117,6 +132,7 @@ export type MaterialUsageInsert = Omit<MaterialUsage, 'id' | 'created_at'>
 export type SalesReportInsert = Omit<SalesReport, 'id' | 'created_at'>
 export type PayrollCycleInsert = Omit<PayrollCycle, 'id' | 'created_at'>
 export type PayrollDetailInsert = Omit<PayrollDetail, 'id' | 'created_at'>
+export type AuditLogInsert = Omit<AuditLog, 'id' | 'created_at'>
 
 // Update types (all fields optional except id)
 export type BranchUpdate = Partial<Omit<Branch, 'id' | 'created_at'>>
@@ -128,6 +144,7 @@ export type MaterialUsageUpdate = Partial<Omit<MaterialUsage, 'id' | 'created_at
 export type SalesReportUpdate = Partial<Omit<SalesReport, 'id' | 'created_at'>>
 export type PayrollCycleUpdate = Partial<Omit<PayrollCycle, 'id' | 'created_at'>>
 export type PayrollDetailUpdate = Partial<Omit<PayrollDetail, 'id' | 'created_at'>>
+export type AuditLogUpdate = Partial<Omit<AuditLog, 'id' | 'created_at'>>
 
 // Database interface
 export interface Database {
@@ -178,10 +195,16 @@ export interface Database {
         Insert: PayrollDetailInsert
         Update: PayrollDetailUpdate
       }
+      audit_logs: {
+        Row: AuditLog
+        Insert: AuditLogInsert
+        Update: AuditLogUpdate
+      }
     }
     Enums: {
       user_role: UserRole
       payroll_status: PayrollStatus
+      audit_action: AuditAction
     }
   }
 }
