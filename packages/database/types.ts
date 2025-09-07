@@ -74,14 +74,10 @@ export interface MaterialUsage {
 export interface SalesReport {
   id: string
   branch_id: string
-  user_id: string
+  employee_id: string
   report_date: string
   total_sales: number
-  total_transactions: number
-  cash_sales: number
-  card_sales: number
-  other_sales: number
-  notes?: string
+  slip_image_url: string
   created_at: string
 }
 
