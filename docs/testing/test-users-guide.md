@@ -7,7 +7,7 @@
 
 **1. Super Admin**
 - **Email:** `admin@test.com`
-- **Password:** `TestAdmin123!`
+- **Password:** `SecureAdmin2024!@#`
 - **ชื่อ:** ผู้ดูแลระบบ (Admin)
 - **Role:** `admin`
 - **Branch:** ไม่มี (สามารถจัดการทุกสาขา)
