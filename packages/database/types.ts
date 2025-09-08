@@ -97,13 +97,15 @@ export interface PayrollDetail {
   id: string
   payroll_cycle_id: string
   user_id: string
-  base_salary: number
+  base_pay: number
   overtime_hours: number
   overtime_rate: number
   overtime_pay: number
-  bonuses: number
-  deductions: number
-  total_pay: number
+  bonus: number
+  bonus_reason?: string
+  deduction: number
+  deduction_reason?: string
+  net_pay: number
   notes?: string
   created_at: string
 }

@@ -78,10 +78,8 @@ Validation: Zod 4.1 + React Hook Form 7.62
 ```
 🗄 Database Schema (Supabase)
 ├── Core Tables: branches, users, work_shifts
-├── Payroll Tables: payroll_cycles, payroll_details, time_entries, audit_logs
-├── Payroll Details Fields: base_pay, bonus, bonus_reason, deduction, deduction_reason, net_pay
-├── Material/Sales Tables: raw_materials, material_usage, sales_reports
-├── Latest Migration: 005_payroll_details_bonus_deduction_fields.sql (bonus/deduction enhancements)
+├── Payroll Tables: payroll_cycles, time_entries, audit_logs
+├── Future Tables: sales_reports, raw_materials
 └── Migrations: database/migrations/*.sql
 ```
 
@@ -116,12 +114,6 @@ GET    /api/admin/payroll/cycles/[id]   // Get payroll cycle details
 PUT    /api/admin/payroll/cycles/[id]   // Update payroll cycle
 DELETE /api/admin/payroll/cycles/[id]   // Delete payroll cycle
 POST   /api/admin/payroll/calculate     // Calculate payroll for cycle
-
-// Payroll Detail Management Endpoints (Admin Only)
-PUT    /api/admin/payroll-details/[id]/bonus      // Add/update bonus
-PUT    /api/admin/payroll-details/[id]/deduction  // Add/update deduction
-DELETE /api/admin/payroll-details/[id]/bonus      // Remove bonus
-DELETE /api/admin/payroll-details/[id]/deduction  // Remove deduction
 ```
 
 ### Authentication Flow
@@ -224,14 +216,6 @@ import { Button, Form, Input } from '@employee-management/ui'
 ├── ✅ Added: Audit trail system for compliance and security monitoring
 └── ✅ Features: Cycle management, calculation preview, summary reports, Thai localization
 
-🎯 Admin Bonus & Deduction Management (Story 3.2) 🚀 IMPLEMENTATION READY
-├── 🚀 Status: Database schema updated, ready for UI implementation
-├── 🎯 Purpose: Admin interface for managing employee bonuses and deductions
-├── 🔧 New APIs: payroll-details bonus/deduction management endpoints (POST/PUT/DELETE)
-├── 🧩 Components: PayrollEmployeeList, BonusDeductionForm, PayrollAdjustmentPreview
-├── ✨ Features: Net pay calculation, cycle protection, Thai validation, audit trail
-└── 📋 QA Gate: docs/qa/gates/3.2-admin-bonus-deduction-management.yml (validation ready)
-
 📊 Raw Materials Management (Story 2.1) 🔄 IN PROGRESS
 ├── Add: raw_materials table with CRUD operations
 ├── Create: Admin-only material management interface
@@ -246,7 +230,7 @@ import { Button, Form, Input } from '@employee-management/ui'
 
 ---
 
-**Generated**: 2025-09-08 | **Project**: Employee Management System | **Version**: 1.2  
-**Context**: Story 3.2 Admin Bonus & Deduction Management - Implementation Ready (Schema Updated)
+**Generated**: 2025-09-07 | **Project**: Employee Management System | **Version**: 1.0  
+**Context**: Story 1.3 Branch Management & GPS Configuration Implementation
 
 *This handbook serves as the primary navigation guide for AI agents and human developers working on the Employee Management System codebase.*

@@ -23,11 +23,83 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey, {
   }
 })
 
+// Pre-seed required branches for FK integrity
+const requiredBranches = [
+  {
+    id: '00000000-0000-0000-0000-000000000001',
+    name: 'สาขาสีลม',
+    address: '123 ถนนสีลม บางรัก กรุงเทพมหานคร 10500',
+    latitude: 13.7563,
+    longitude: 100.5018,
+  },
+  {
+    id: '00000000-0000-0000-0000-000000000002',
+    name: 'สาขาสุขุมวิท',
+    address: '456 ถนนสุขุมวิท วัฒนา กรุงเทพมหานคร 10110',
+    latitude: 13.7398,
+    longitude: 100.5612,
+  },
+  {
+    id: '00000000-0000-0000-0000-000000000003',
+    name: 'สาขาจตุจักร',
+    address: '789 ถนนพหลโยธิน จตุจักร กรุงเทพมหานคร 10900',
+    latitude: 13.8077,
+    longitude: 100.5538,
+  },
+]
+
+async function ensureBranches() {
+  try {
+    console.log('🔧 ตรวจสอบ/สร้างสาขาที่จำเป็นสำหรับ FK...')
+    const { data: existing, error: selErr } = await supabase
+      .from('branches')
+      .select('id')
+      .in('id', requiredBranches.map(b => b.id))
+    if (selErr) {
+      console.warn('⚠️ ไม่สามารถอ่านตาราง branches ได้:', selErr.message)
+    }
+
+    const existingIds = new Set((existing || []).map(b => b.id))
+    const toInsert = requiredBranches.filter(b => !existingIds.has(b.id))
+    if (toInsert.length === 0) {
+      console.log('✅ branches ครบถ้วนแล้ว')
+      return true
+    }
+
+    const { error: upErr } = await supabase.from('branches').upsert(toInsert)
+    if (upErr) {
+      console.error('❌ สร้างสาขาไม่สำเร็จ:', upErr.message)
+      return false
+    }
+    console.log(`✅ สร้างสาขาเพิ่ม ${toInsert.length} รายการสำเร็จ`)
+    return true
+  } catch (e) {
+    console.error('❌ ผิดพลาดขณะเตรียม branches:', e.message)
+    return false
+  }
+}
+
+async function findUserByEmail(email) {
+  try {
+    let page = 1
+    const perPage = 1000
+    while (page < 10) { // กันลูปยาวเกินไป
+      const { data, error } = await supabase.auth.admin.listUsers({ page, perPage })
+      if (error) return null
+      const found = data.users.find(u => u.email?.toLowerCase() === email.toLowerCase())
+      if (found) return found
+      if (data.users.length < perPage) break
+      page++
+    }
+  } catch (_) {}
+  return null
+}
+
 // Test users data
 const testUsers = [
   {
     email: 'admin@test.com',
-    password: 'TestAdmin123!',
+    password: 'SecureAdmin2024!@#',
     fullName: 'ผู้ดูแลระบบ (Admin)',
     role: 'admin',
     branchId: null,
@@ -96,12 +168,37 @@ async function createTestUser(userData) {
       }
     })
 
+    let authUserId = authData?.user?.id
     if (authError) {
-      console.error(`❌ เกิดข้อผิดพลาดในการสร้าง auth user: ${userData.email}`, authError.message)
-      return false
+      // ถ้าผู้ใช้มีอยู่แล้ว ให้ค้นหา id เพื่อไปอัปเดทโปรไฟล์ต่อ
+      if (authError.message && authError.message.includes('already been registered')) {
+        console.warn(`ℹ️ ผู้ใช้นี้มีอยู่แล้วใน Auth: ${userData.email} — จะค้นหาเพื่ออัปเดทโปรไฟล์`)
+        const existing = await findUserByEmail(userData.email)
+        if (!existing) {
+          console.error(`❌ หา user ใน Auth ไม่เจอ: ${userData.email}`)
+          return false
+        }
+        authUserId = existing.id
+      } else {
+        console.error(`❌ เกิดข้อผิดพลาดในการสร้าง auth user: ${userData.email}`, authError.message)
+        return false
+      }
+    } else {
+      console.log(`✅ สร้าง auth user สำเร็จ: ${userData.email}`)
     }
 
-    console.log(`✅ สร้าง auth user สำเร็จ: ${userData.email}`)
+    // Ensure user_metadata has correct role/full_name (useful if user existed already)
+    if (authUserId) {
+      const { error: metaErr } = await supabase.auth.admin.updateUserById(authUserId, {
+        user_metadata: {
+          full_name: userData.fullName,
+          role: userData.role,
+        },
+      })
+      if (metaErr) {
+        console.warn(`⚠️ อัปเดต user_metadata ไม่สำเร็จ: ${userData.email}`, metaErr.message)
+      }
+    }
 
     // Update user profile in users table (in case trigger doesn't work)
     const profileData = {
@@ -117,10 +214,12 @@ async function createTestUser(userData) {
 
     const { error: profileError } = await supabase
       .from('users')
-      .upsert({ id: authData.user.id, ...profileData })
+      .upsert({ id: authUserId, ...profileData })
 
     if (profileError) {
+      // ชี้นำว่าอาจยังไม่ได้รัน migrations
       console.error(`❌ เกิดข้อผิดพลาดในการอัพเดท profile: ${userData.email}`, profileError.message)
+      console.error('   👉 โปรดตรวจสอบว่าได้รัน database migrations (001_initial_schema.sql, 002_auth_setup.sql) แล้ว')
       return false
     }
 
@@ -136,13 +235,18 @@ async function createTestUser(userData) {
 async function createAllTestUsers() {
   console.log('🚀 เริ่มสร้าง Test User Accounts...\n')
 
+  // Ensure branches before creating users with branch_id
+  await ensureBranches()
+
   let successCount = 0
   let failCount = 0
+  const succeeded = []
 
   for (const userData of testUsers) {
     const success = await createTestUser(userData)
     if (success) {
       successCount++
+      succeeded.push(userData)
     } else {
       failCount++
     }
@@ -156,16 +260,14 @@ async function createAllTestUsers() {
 
   if (successCount > 0) {
     console.log('\n🎉 Test Users ที่สร้างสำเร็จ:')
-    testUsers.forEach((user, index) => {
-      if (index < successCount) {
-        console.log(`   📧 ${user.email} - ${user.fullName} (${user.role})`)
-      }
+    succeeded.forEach((user) => {
+      console.log(`   📧 ${user.email} - ${user.fullName} (${user.role})`)
     })
 
     console.log('\n📋 รายละเอียดการล็อกอิน:')
     console.log('   Admin Account:')
     console.log('   📧 admin@test.com')
-    console.log('   🔑 TestAdmin123!')
+    console.log('   🔑 SecureAdmin2024!@#')
     console.log('')
     console.log('   Employee Accounts:')
     console.log('   📧 employee.som@test.com   🔑 Employee123!')

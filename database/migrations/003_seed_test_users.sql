@@ -47,7 +47,7 @@ INSERT INTO raw_materials (name, unit, cost_per_unit, supplier, description) VAL
 
 -- TEST ADMIN ACCOUNTS:
 -- Email: admin@test.com
--- Password: TestAdmin123!
+-- Password: SecureAdmin2024!@#
 -- Full Name: ผู้ดูแลระบบ (Admin)  
 -- Role: admin
 

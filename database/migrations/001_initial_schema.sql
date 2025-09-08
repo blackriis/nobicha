@@ -2,11 +2,13 @@
 CREATE TYPE user_role AS ENUM ('employee', 'admin');
 CREATE TYPE payroll_status AS ENUM ('active', 'completed');
 
--- Enable UUID extension
+-- Enable UUID/crypto extensions (gen_random_uuid() requires pgcrypto)
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Enable RLS (Row Level Security)
-ALTER DATABASE postgres SET "app.jwt_secret" TO 'your-jwt-secret';
+-- Note: On hosted Supabase, setting app.jwt_secret is managed by the platform
+-- and requires superuser. Remove/skip this to avoid permission errors.
+-- ALTER DATABASE postgres SET "app.jwt_secret" TO 'your-jwt-secret';
 
 -- Create branches table
 CREATE TABLE branches (

@@ -80,8 +80,7 @@ Validation: Zod 4.1 + React Hook Form 7.62
 ├── Core Tables: branches, users, work_shifts
 ├── Payroll Tables: payroll_cycles, payroll_details, time_entries, audit_logs
 ├── Payroll Details Fields: base_pay, bonus, bonus_reason, deduction, deduction_reason, net_pay
-├── Material/Sales Tables: raw_materials, material_usage, sales_reports
-├── Latest Migration: 005_payroll_details_bonus_deduction_fields.sql (bonus/deduction enhancements)
+├── Future Tables: sales_reports, raw_materials, material_usage
 └── Migrations: database/migrations/*.sql
 ```
 
@@ -224,13 +223,12 @@ import { Button, Form, Input } from '@employee-management/ui'
 ├── ✅ Added: Audit trail system for compliance and security monitoring
 └── ✅ Features: Cycle management, calculation preview, summary reports, Thai localization
 
-🎯 Admin Bonus & Deduction Management (Story 3.2) 🚀 IMPLEMENTATION READY
-├── 🚀 Status: Database schema updated, ready for UI implementation
+🎯 Admin Bonus & Deduction Management (Story 3.2) 📋 READY FOR IMPLEMENTATION
+├── 📋 Status: Approved, ready for development implementation
 ├── 🎯 Purpose: Admin interface for managing employee bonuses and deductions
-├── 🔧 New APIs: payroll-details bonus/deduction management endpoints (POST/PUT/DELETE)
+├── 🔧 New APIs: payroll-details bonus/deduction management endpoints
 ├── 🧩 Components: PayrollEmployeeList, BonusDeductionForm, PayrollAdjustmentPreview
-├── ✨ Features: Net pay calculation, cycle protection, Thai validation, audit trail
-└── 📋 QA Gate: docs/qa/gates/3.2-admin-bonus-deduction-management.yml (validation ready)
+└── ✨ Features: Net pay calculation, cycle protection, Thai validation, audit trail
 
 📊 Raw Materials Management (Story 2.1) 🔄 IN PROGRESS
 ├── Add: raw_materials table with CRUD operations
@@ -246,7 +244,7 @@ import { Button, Form, Input } from '@employee-management/ui'
 
 ---
 
-**Generated**: 2025-09-08 | **Project**: Employee Management System | **Version**: 1.2  
-**Context**: Story 3.2 Admin Bonus & Deduction Management - Implementation Ready (Schema Updated)
+**Generated**: 2025-09-08 | **Project**: Employee Management System | **Version**: 1.1  
+**Context**: Story 3.2 Admin Bonus & Deduction Management - Ready for Implementation
 
 *This handbook serves as the primary navigation guide for AI agents and human developers working on the Employee Management System codebase.*
