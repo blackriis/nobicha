@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ทดสอบ Flow การขออนุญาตกล้อง</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            padding: 20px;
+            max-width: 600px;
+            margin: 0 auto;
+            background: #f9fafb;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .step {
+            display: none;
+            text-align: center;
+        }
+        .step.active {
+            display: block;
+        }
+        .step h2 {
+            color: #1f2937;
+            margin-bottom: 15px;
+        }
+        .step p {
+            color: #6b7280;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        button {
+            padding: 12px 24px;
+            margin: 8px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: #10b981;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #059669;
+        }
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+        .btn-secondary:hover {
+            background: #d1d5db;
+        }
+        .instruction-box {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 15px 0;
+        }
+        .instruction-box h4 {
+            color: #92400e;
+            margin: 0 0 10px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .instruction-box ol {
+            color: #92400e;
+            margin: 0;
+            text-align: left;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: 600;
+        }
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+        }
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #ef4444;
+        }
+        .status.waiting {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #3b82f6;
+        }
+        .pulse {
+            width: 8px;
+            height: 8px;
+            background: #f59e0b;
+            border-radius: 50%;
+            display: inline-block;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        video {
+            border: 3px solid #10b981;
+            border-radius: 12px;
+            max-width: 300px;
+            max-height: 400px;
+            object-fit: contain;
+            background: #1f2937;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Step 1: Permission Request -->
+        <div id="step1" class="step active">
+            <div style="display: flex; justify-content: center; margin-bottom: 20px;">
+                <div style="padding: 16px; background: #dbeafe; border-radius: 50%;">
+                    <svg width="48" height="48" fill="none" stroke="#3b82f6" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                </div>
+            </div>
+            
+            <h2>ขออนุญาตเข้าถึงกล้อง</h2>
+            <p>แอปพลิเคชันต้องการเข้าถึงกล้องเพื่อถ่ายรูปเซลฟี่สำหรับการยืนยันตัวตน</p>
+
+            <div class="instruction-box">
+                <h4>
+                    <span class="pulse"></span>
+                    ขั้นตอนการอนุญาตการเข้าถึงกล้อง:
+                </h4>
+                <ol>
+                    <li><strong>กดปุ่ม "เริ่มใช้กล้อง"</strong> ด้านล่าง</li>
+                    <li><strong>เมื่อเบราว์เซอร์ถาม ให้กด "Allow" หรือ "อนุญาต"</strong></li>
+                    <li>หากปฏิเสธไปแล้ว ให้รีเฟรชหน้าและลองใหม่</li>
+                </ol>
+                <div style="margin-top: 10px; padding: 8px; background: #fef3c7; border-radius: 4px; font-size: 14px;">
+                    💡 <strong>หมายเหตุ:</strong> การขออนุญาตจะเกิดขึ้น<strong>หลังจาก</strong>กดปุ่มเท่านั้น
+                </div>
+            </div>
+
+            <button class="btn-primary" onclick="requestCameraAccess()">
+                🎥 เริ่มใช้กล้อง
+            </button>
+            <button class="btn-secondary" onclick="cancelFlow()">
+                ❌ ยกเลิก
+            </button>
+        </div>
+
+        <!-- Step 2: Requesting Permission -->
+        <div id="step2" class="step">
+            <h2>กำลังขออนุญาต...</h2>
+            <div class="status waiting">
+                ⏳ กำลังขออนุญาตเข้าถึงกล้อง กรุณารอสักครู่...
+            </div>
+            <p>กรุณาตอบตกลงเมื่อเบราว์เซอร์ถามเกี่ยวกับการอนุญาตใช้กล้อง</p>
+        </div>
+
+        <!-- Step 3: Camera Active -->
+        <div id="step3" class="step">
+            <h2>🎉 กล้องพร้อมใช้งาน!</h2>
+            <div class="status success">
+                ✅ การอนุญาตสำเร็จ - กล้องทำงานได้ปกติ
+            </div>
+            
+            <div style="margin: 20px 0;">
+                <video id="video" autoplay muted playsinline></video>
+            </div>
+            
+            <p>ตอนนี้คุณสามารถใช้งานกล้องได้แล้ว!</p>
+            
+            <button class="btn-primary" onclick="capturePhoto()">
+                📸 ถ่ายรูป
+            </button>
+            <button class="btn-secondary" onclick="stopCamera()">
+                🛑 หยุดกล้อง
+            </button>
+        </div>
+
+        <!-- Step 4: Error -->
+        <div id="step4" class="step">
+            <h2>❌ เกิดข้อผิดพลาด</h2>
+            <div class="status error" id="errorMessage">
+                ไม่สามารถเข้าถึงกล้องได้
+            </div>
+            
+            <div class="instruction-box">
+                <h4>🔧 วิธีแก้ไข:</h4>
+                <ol>
+                    <li>ตรวจสอบว่าอุปกรณ์มีกล้อง</li>
+                    <li>อนุญาตการเข้าถึงกล้องในการตั้งค่าเบราว์เซอร์</li>
+                    <li>รีเฟรชหน้าเว็บและลองใหม่</li>
+                    <li>ตรวจสอบว่าไม่มีแอปอื่นใช้กล้องอยู่</li>
+                </ol>
+            </div>
+            
+            <button class="btn-primary" onclick="retry()">
+                🔄 ลองใหม่
+            </button>
+            <button class="btn-secondary" onclick="cancelFlow()">
+                ❌ ยกเลิก
+            </button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h3>📊 สถานะการทดสอบ</h3>
+        <div id="testStatus">
+            <div>🟡 <strong>Flow ที่ถูกต้อง:</strong> แสดงหน้าขออนุญาตก่อน → ผู้ใช้กดปุ่ม → ขออนุญาตจริง</div>
+            <div>❌ <strong>Flow ที่ผิด:</strong> เปิดกล้องทันทีโดยไม่รอการกดปุ่ม</div>
+        </div>
+    </div>
+
+    <script>
+        let stream = null;
+        let currentStep = 1;
+
+        function showStep(step) {
+            // Hide all steps
+            document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+            // Show target step
+            document.getElementById('step' + step).classList.add('active');
+            currentStep = step;
+        }
+
+        async function requestCameraAccess() {
+            console.log('🚀 ผู้ใช้กดปุ่ม "เริ่มใช้กล้อง" - ตอนนี้จึงขออนุญาตจริง');
+            
+            showStep(2); // Show requesting step
+            
+            try {
+                // ตอนนี้จึงขออนุญาตกล้องจริง (หลังจากผู้ใช้กดปุ่ม)
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'user'
+                    },
+                    audio: false
+                });
+
+                console.log('✅ ได้รับอนุญาตแล้ว - กล้องพร้อมใช้งาน');
+                
+                // Setup video
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+                
+                showStep(3); // Show success step
+                
+                updateTestStatus('success', 'ทดสอบผ่าน! กล้องถูกเปิดหลังจากผู้ใช้กดปุ่มอนุญาตเท่านั้น');
+
+            } catch (error) {
+                console.error('❌ ไม่ได้รับอนุญาต:', error);
+                
+                let errorMsg = 'ไม่สามารถเข้าถึงกล้องได้';
+                if (error.name === 'NotAllowedError') {
+                    errorMsg = 'ผู้ใช้ปฏิเสธการอนุญาต - กรุณาอนุญาตในการตั้งค่าเบราว์เซอร์';
+                } else if (error.name === 'NotFoundError') {
+                    errorMsg = 'ไม่พบกล้องในอุปกรณ์นี้';
+                }
+                
+                document.getElementById('errorMessage').textContent = errorMsg;
+                showStep(4); // Show error step
+                
+                updateTestStatus('error', 'เกิดข้อผิดพลาด: ' + errorMsg);
+            }
+        }
+
+        function capturePhoto() {
+            if (stream) {
+                console.log('📸 จับภาพสำเร็จ (ในการใช้งานจริงจะมีการประมวลผลต่อ)');
+                alert('📸 ถ่ายรูปสำเร็จ! (ในระบบจริงจะมีการอัปโหลดต่อ)');
+            }
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+                console.log('🛑 หยุดกล้องแล้ว');
+                showStep(1);
+                updateTestStatus('info', 'หยุดกล้องแล้ว - กลับสู่หน้าขออนุญาตเริ่มต้น');
+            }
+        }
+
+        function retry() {
+            showStep(1);
+            updateTestStatus('info', 'เริ่มต้นใหม่ - รอการกดปุ่มจากผู้ใช้');
+        }
+
+        function cancelFlow() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            alert('❌ ยกเลิกการใช้งานกล้อง');
+            updateTestStatus('info', 'ผู้ใช้ยกเลิกการใช้งาน');
+        }
+
+        function updateTestStatus(type, message) {
+            const statusEl = document.getElementById('testStatus');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            let color = '#374151';
+            let icon = '🟡';
+            
+            if (type === 'success') {
+                color = '#065f46';
+                icon = '✅';
+            } else if (type === 'error') {
+                color = '#991b1b';
+                icon = '❌';
+            } else if (type === 'info') {
+                color = '#1e40af';
+                icon = 'ℹ️';
+            }
+            
+            statusEl.innerHTML = `
+                <div style="color: ${color}; margin: 5px 0;">
+                    ${icon} <strong>[${timestamp}]</strong> ${message}
+                </div>
+            ` + statusEl.innerHTML;
+        }
+
+        // Initialize
+        updateTestStatus('info', 'เริ่มต้นการทดสอบ - กล้องจะไม่ถูกเปิดจนกว่าผู้ใช้จะกดปุ่ม');
+        
+        // Prevent accidental camera access on page load
+        console.log('🔒 หน้าเว็บโหลดแล้ว - กล้องจะไม่ถูกเปิดโดยอัตโนมัติ');
+    </script>
+</body>
+</html>

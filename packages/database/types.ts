@@ -75,7 +75,7 @@ export interface MaterialUsage {
 export interface SalesReport {
   id: string
   branch_id: string
-  employee_id: string
+  user_id: string
   report_date: string
   total_sales: number
   slip_image_url: string
@@ -116,8 +116,8 @@ export interface AuditLog {
   action: AuditAction
   table_name: string
   record_id?: string
-  old_values?: any
-  new_values?: any
+  old_values?: Record<string, unknown>
+  new_values?: Record<string, unknown>
   ip_address?: string
   user_agent?: string
   description?: string
