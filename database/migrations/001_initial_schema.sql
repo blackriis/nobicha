@@ -91,6 +91,7 @@ CREATE TABLE sales_reports (
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   report_date DATE NOT NULL,
   total_sales DECIMAL(10,2) NOT NULL,
+  slip_image_url TEXT NOT NULL,
   total_transactions INTEGER DEFAULT 0,
   cash_sales DECIMAL(10,2) DEFAULT 0,
   card_sales DECIMAL(10,2) DEFAULT 0,

@@ -1,0 +1,85 @@
+# Quality Gate: Security Fix for Employee Material Usage - Cost Data Protection
+schema: 1
+story: "2.2"
+story_title: "Employee Material Usage Security Fix - Cost Data Protection"
+gate: PASS
+status_reason: "Critical security vulnerability successfully resolved. Role-based access control implemented correctly across all layers (API, service, UI) with comprehensive cost data protection."
+reviewer: "Quinn (Test Architect)"
+updated: "2025-01-12T14:30:00Z"
+
+waiver: { active: false }
+
+top_issues: []
+
+# Security fix assessment
+security_fix:
+  vulnerability_type: "Information Disclosure"
+  severity: "HIGH"
+  cve_equivalent: "Business Data Exposure"
+  affected_components:
+    - "Employee Material Usage API (/api/employee/material-usage/*)"
+    - "Material Usage Service Layer (material-usage.service.ts)"
+    - "Usage Summary UI Component (UsageSummary.tsx)"
+  
+fix_validation:
+  api_layer:
+    status: PASS
+    finding: "✅ Employee APIs no longer expose cost_per_unit in raw_materials selection"
+    evidence: "Verified removal of cost_per_unit from both POST and GET endpoints"
+  
+  service_layer:
+    status: PASS  
+    finding: "✅ Role-based filtering implemented in calculateTotalCost() and groupMaterialUsageByMaterial()"
+    evidence: "Utility functions now accept userRole parameter and return 0 for non-admin users"
+  
+  ui_layer:
+    status: PASS
+    finding: "✅ Conditional rendering based on isAdmin role prevents cost information display"
+    evidence: "showCostInfo flag properly gates all cost-related UI elements"
+  
+  type_safety:
+    status: PASS
+    finding: "✅ TypeScript interfaces updated to handle optional cost_per_unit"
+    evidence: "MaterialUsageRecord interface made cost_per_unit optional, preventing runtime errors"
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: "Business-sensitive cost data properly protected through multi-layer access controls"
+  performance:
+    status: PASS
+    notes: "No performance impact - filtering occurs at data layer with minimal overhead"
+  reliability:
+    status: PASS
+    notes: "Type safety improvements prevent runtime errors from missing cost data"
+  maintainability:
+    status: PASS
+    notes: "Clean role-based abstraction makes future permission changes straightforward"
+
+evidence:
+  tests_reviewed: 0  # Security fix validation - no new tests required
+  risks_identified: 1  # Original vulnerability
+  trace:
+    security_controls: ["Role-based API filtering", "UI conditional rendering", "Service layer access control", "TypeScript safety"]
+    vulnerability_closed: true
+
+quality_score: 95  # High score due to comprehensive multi-layer security fix
+
+recommendations:
+  immediate: []  # No immediate actions required
+  future:
+    - action: "Consider implementing audit logging for cost data access attempts"
+      refs: ["material-usage.service.ts", "UsageSummary.tsx"]
+    - action: "Add automated security tests to prevent regression of cost data exposure"
+      refs: ["__tests__/security/material-usage-rbac.test.ts"]
+
+compliance:
+  business_requirements: PASS  # "ต้นทุนเป็นความลับที่มีแต่แอดมินเท่านั้นที่ทราบ"
+  data_protection: PASS  # Sensitive business data properly protected
+  role_based_access: PASS  # Multi-layer RBAC implementation
+  principle_of_least_privilege: PASS  # Employees only see necessary data
+
+risk_assessment:
+  before_fix: "HIGH - All employees could access business-sensitive cost data"
+  after_fix: "LOW - Cost data restricted to admin role only"
+  residual_risk: "MINIMAL - Standard authorization risks remain"
