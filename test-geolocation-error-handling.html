@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Geolocation Error Handling</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .error-button {
+            background: #dc3545;
+        }
+        .error-button:hover {
+            background: #c82333;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .warning {
+            color: #ffc107;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Geolocation Error Handling</h1>
+    <p>ทดสอบการจัดการ error ต่างๆ ของ Geolocation API</p>
+
+    <div class="test-section">
+        <h2>1. ทดสอบการทำงานปกติ</h2>
+        <button class="test-button" onclick="testNormalGeolocation()">ทดสอบ GPS ปกติ</button>
+        <div id="normal-result" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. ทดสอบ Permission Denied</h2>
+        <button class="test-button error-button" onclick="testPermissionDenied()">ทดสอบ Permission Denied</button>
+        <div id="permission-result" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. ทดสอบ Position Unavailable</h2>
+        <button class="test-button error-button" onclick="testPositionUnavailable()">ทดสอบ Position Unavailable</button>
+        <div id="position-result" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. ทดสอบ Timeout</h2>
+        <button class="test-button error-button" onclick="testTimeout()">ทดสอบ Timeout</button>
+        <div id="timeout-result" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. ทดสอบ Empty Object Error</h2>
+        <button class="test-button error-button" onclick="testEmptyObjectError()">ทดสอบ Empty Object Error</button>
+        <div id="empty-result" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>6. ทดสอบ CoreLocation Error (iOS/macOS)</h2>
+        <button class="test-button error-button" onclick="testCoreLocationError()">ทดสอบ CoreLocation Error</button>
+        <div id="corelocation-result" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>7. ทดสอบ Error Handling Function</h2>
+        <button class="test-button" onclick="testErrorHandlingFunction()">ทดสอบ Error Handling Function</button>
+        <div id="handling-result" class="log"></div>
+    </div>
+
+    <script>
+        // Enhanced error logging function (copied from CheckInOutCard.tsx)
+        function logGeolocationError(error, context = '') {
+            console.error(`🔥 Geolocation error ${context} - Raw error:`, error);
+            console.error(`🔥 Geolocation error type:`, typeof error);
+            console.error(`🔥 Geolocation error constructor:`, error?.constructor?.name);
+            
+            // Check if error is an empty object or has no useful properties
+            if (error && typeof error === 'object') {
+                const errorKeys = Object.keys(error);
+                console.error(`🔥 Geolocation error keys:`, errorKeys);
+                console.error(`🔥 Geolocation error values:`, Object.values(error));
+                
+                if (errorKeys.length === 0) {
+                    console.error(`🔥 Geolocation error is empty object - this might be a serialization issue`);
+                    return {
+                        isEmpty: true,
+                        message: 'ไม่สามารถเข้าถึงตำแหน่งได้ กรุณาตรวจสอบการอนุญาต GPS'
+                    };
+                }
+            }
+            
+            if (error && typeof error === 'object' && 'code' in error) {
+                // Handle GeolocationPositionError
+                const geoError = error;
+                const errorInfo = {
+                    errorType: 'GeolocationPositionError',
+                    code: geoError.code,
+                    message: geoError.message || 'No message provided',
+                    codeNames: {
+                        1: 'PERMISSION_DENIED',
+                        2: 'POSITION_UNAVAILABLE', 
+                        3: 'TIMEOUT'
+                    },
+                    currentCodeName: geoError.code === 1 ? 'PERMISSION_DENIED' : 
+                                    geoError.code === 2 ? 'POSITION_UNAVAILABLE' : 
+                                    geoError.code === 3 ? 'TIMEOUT' : 'UNKNOWN'
+                };
+                
+                console.error(`🔥 Geolocation error details:`, errorInfo);
+                
+                let errorMessage = 'ไม่สามารถเข้าถึงตำแหน่งได้';
+                switch (geoError.code) {
+                    case 1: // PERMISSION_DENIED
+                        errorMessage = 'กรุณาอนุญาตการเข้าถึงตำแหน่งในเบราว์เซอร์';
+                        break;
+                    case 2: // POSITION_UNAVAILABLE
+                        errorMessage = 'ไม่สามารถระบุตำแหน่งได้ กรุณาตรวจสอบ GPS';
+                        break;
+                    case 3: // TIMEOUT
+                        errorMessage = 'หมดเวลาการค้นหาตำแหน่ง กรุณาลองใหม่';
+                        break;
+                    default:
+                        errorMessage = `เกิดข้อผิดพลาดตำแหน่ง: ${geoError.message || 'ไม่ทราบสาเหตุ'}`;
+                }
+                
+                return {
+                    isGeolocationError: true,
+                    code: geoError.code,
+                    message: errorMessage,
+                    details: errorInfo
+                };
+            } else if (error instanceof Error) {
+                const errorInfo = {
+                    errorType: 'Error',
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                };
+                console.error(`🔥 General error:`, errorInfo);
+                return {
+                    isError: true,
+                    message: error.message,
+                    details: errorInfo
+                };
+            } else {
+                // Handle non-Error objects more carefully
+                const errorInfo = {
+                    errorType: typeof error,
+                    errorValue: error,
+                    errorString: String(error),
+                    errorJSON: (() => {
+                        try {
+                            return JSON.stringify(error, null, 2);
+                        } catch (e) {
+                            return 'Cannot stringify error object';
+                        }
+                    })(),
+                    hasCode: 'code' in (error || {}),
+                    hasMessage: 'message' in (error || {}),
+                    keys: error && typeof error === 'object' ? Object.keys(error) : []
+                };
+                console.error(`🔥 Unknown error:`, errorInfo);
+                return {
+                    isUnknown: true,
+                    message: 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ',
+                    details: errorInfo
+                };
+            }
+        }
+
+        // Test functions
+        function testNormalGeolocation() {
+            const resultDiv = document.getElementById('normal-result');
+            resultDiv.innerHTML = 'กำลังทดสอบ...';
+            
+            if (!navigator.geolocation) {
+                resultDiv.innerHTML = '<span class="error">❌ เบราว์เซอร์ไม่รองรับ Geolocation API</span>';
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    resultDiv.innerHTML = `<span class="success">✅ สำเร็จ!</span>
+ตำแหน่ง: ${position.coords.latitude}, ${position.coords.longitude}
+ความแม่นยำ: ${position.coords.accuracy} เมตร`;
+                },
+                (error) => {
+                    const errorResult = logGeolocationError(error, 'in normal test');
+                    resultDiv.innerHTML = `<span class="error">❌ เกิดข้อผิดพลาด:</span>
+${JSON.stringify(errorResult, null, 2)}`;
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 5000,
+                    maximumAge: 60000
+                }
+            );
+        }
+
+        function testPermissionDenied() {
+            const resultDiv = document.getElementById('permission-result');
+            resultDiv.innerHTML = 'กำลังทดสอบ Permission Denied...';
+            
+            // Simulate permission denied error
+            const mockError = {
+                code: 1,
+                message: 'User denied the request for Geolocation.'
+            };
+            
+            const errorResult = logGeolocationError(mockError, 'permission denied test');
+            resultDiv.innerHTML = `<span class="warning">⚠️ Permission Denied Test:</span>
+${JSON.stringify(errorResult, null, 2)}`;
+        }
+
+        function testPositionUnavailable() {
+            const resultDiv = document.getElementById('position-result');
+            resultDiv.innerHTML = 'กำลังทดสอบ Position Unavailable...';
+            
+            // Simulate position unavailable error
+            const mockError = {
+                code: 2,
+                message: 'Location information is unavailable.'
+            };
+            
+            const errorResult = logGeolocationError(mockError, 'position unavailable test');
+            resultDiv.innerHTML = `<span class="warning">⚠️ Position Unavailable Test:</span>
+${JSON.stringify(errorResult, null, 2)}`;
+        }
+
+        function testTimeout() {
+            const resultDiv = document.getElementById('timeout-result');
+            resultDiv.innerHTML = 'กำลังทดสอบ Timeout...';
+            
+            // Simulate timeout error
+            const mockError = {
+                code: 3,
+                message: 'The request to get user location timed out.'
+            };
+            
+            const errorResult = logGeolocationError(mockError, 'timeout test');
+            resultDiv.innerHTML = `<span class="warning">⚠️ Timeout Test:</span>
+${JSON.stringify(errorResult, null, 2)}`;
+        }
+
+        function testEmptyObjectError() {
+            const resultDiv = document.getElementById('empty-result');
+            resultDiv.innerHTML = 'กำลังทดสอบ Empty Object Error...';
+            
+            // Simulate empty object error (the problematic case from the real error)
+            const mockError = {};
+            
+            console.log('🧪 Testing empty object error (the real issue):');
+            console.log('Raw error:', mockError);
+            console.log('Type:', typeof mockError);
+            console.log('Keys:', Object.keys(mockError));
+            console.log('Values:', Object.values(mockError));
+            
+            const errorResult = logGeolocationError(mockError, 'empty object test');
+            resultDiv.innerHTML = `<span class="error">❌ Empty Object Test (Real Issue):</span>
+<pre>${JSON.stringify(errorResult, null, 2)}</pre>
+<div class="warning">
+<strong>💡 หมายเหตุ:</strong> นี่คือปัญหาจริงที่เกิดขึ้นในแอป - error object เป็น empty object {}
+</div>`;
+        }
+
+        function testCoreLocationError() {
+            const resultDiv = document.getElementById('corelocation-result');
+            resultDiv.innerHTML = 'กำลังทดสอบ CoreLocation Error...';
+            
+            // Simulate CoreLocation error scenarios
+            const coreLocationErrors = [
+                { 
+                    name: 'kCLErrorLocationUnknown', 
+                    error: { code: 2, message: 'CoreLocation framework reported a kCLErrorLocationUnknown failure.' },
+                    description: 'CoreLocation ไม่สามารถระบุตำแหน่งได้'
+                },
+                { 
+                    name: 'Invalid Position Data', 
+                    error: new Error('ข้อมูลตำแหน่งไม่ถูกต้อง'),
+                    description: 'ข้อมูลตำแหน่งที่ได้รับไม่ถูกต้อง'
+                },
+                { 
+                    name: 'Zero Coordinates', 
+                    error: new Error('ไม่สามารถระบุตำแหน่งได้ กรุณาตรวจสอบ GPS'),
+                    description: 'ได้รับพิกัด 0,0 (ไม่ถูกต้อง)'
+                },
+                { 
+                    name: 'High Inaccuracy', 
+                    error: { code: 2, message: 'Position accuracy too low' },
+                    description: 'ตำแหน่งไม่แม่นยำ (accuracy > 1000m)'
+                }
+            ];
+            
+            let results = '🧪 CoreLocation Error Test Results:\n\n';
+            
+            coreLocationErrors.forEach((test, index) => {
+                results += `${index + 1}. ${test.name}:\n`;
+                results += `   Description: ${test.description}\n`;
+                const errorResult = logGeolocationError(test.error, `CoreLocation test ${index + 1}`);
+                results += `   Result: ${JSON.stringify(errorResult, null, 2)}\n\n`;
+            });
+            
+            // Test real geolocation with enhanced options
+            results += '🌍 Real Geolocation Test with Enhanced Options:\n';
+            results += 'Testing with timeout: 15000ms, maximumAge: 30000ms\n\n';
+            
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const { latitude, longitude, accuracy } = position.coords;
+                        results += `✅ Success!\n`;
+                        results += `   Latitude: ${latitude}\n`;
+                        results += `   Longitude: ${longitude}\n`;
+                        results += `   Accuracy: ${accuracy} meters\n`;
+                        
+                        if (accuracy > 1000) {
+                            results += `   ⚠️ Warning: Low accuracy detected\n`;
+                        }
+                        
+                        resultDiv.innerHTML = `<span class="success">✅ CoreLocation Test Complete:</span>
+<pre>${results}</pre>`;
+                    },
+                    (error) => {
+                        results += `❌ Real Geolocation Error:\n`;
+                        const errorResult = logGeolocationError(error, 'real geolocation test');
+                        results += `   ${JSON.stringify(errorResult, null, 2)}\n`;
+                        
+                        resultDiv.innerHTML = `<span class="error">❌ CoreLocation Test with Real Error:</span>
+<pre>${results}</pre>`;
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 15000,
+                        maximumAge: 30000
+                    }
+                );
+            } else {
+                results += `❌ Geolocation not supported in this browser\n`;
+                resultDiv.innerHTML = `<span class="error">❌ CoreLocation Test - Geolocation Not Supported:</span>
+<pre>${results}</pre>`;
+            }
+        }
+
+        function testErrorHandlingFunction() {
+            const resultDiv = document.getElementById('handling-result');
+            resultDiv.innerHTML = 'กำลังทดสอบ Error Handling Function...';
+            
+            const testErrors = [
+                { name: 'Empty Object', error: {} },
+                { name: 'Permission Denied', error: { code: 1, message: 'Permission denied' } },
+                { name: 'Position Unavailable', error: { code: 2, message: 'Position unavailable' } },
+                { name: 'Timeout', error: { code: 3, message: 'Timeout' } },
+                { name: 'Regular Error', error: new Error('Test error message') },
+                { name: 'String Error', error: 'String error message' },
+                { name: 'Null Error', error: null },
+                { name: 'Undefined Error', error: undefined }
+            ];
+            
+            let results = '🧪 Error Handling Test Results:\n\n';
+            
+            testErrors.forEach((test, index) => {
+                results += `${index + 1}. ${test.name}:\n`;
+                const errorResult = logGeolocationError(test.error, `test ${index + 1}`);
+                results += `   Result: ${JSON.stringify(errorResult, null, 2)}\n\n`;
+            });
+            
+            resultDiv.innerHTML = `<span class="success">✅ Error Handling Test Complete:</span>
+<pre>${results}</pre>`;
+        }
+
+        // Auto-run basic tests on page load
+        window.addEventListener('load', () => {
+            console.log('🧪 Geolocation Error Handling Test Page Loaded');
+            console.log('Available tests:');
+            console.log('1. testNormalGeolocation()');
+            console.log('2. testPermissionDenied()');
+            console.log('3. testPositionUnavailable()');
+            console.log('4. testTimeout()');
+            console.log('5. testEmptyObjectError()');
+            console.log('6. testCoreLocationError()');
+            console.log('7. testErrorHandlingFunction()');
+        });
+    </script>
+</body>
+</html>
