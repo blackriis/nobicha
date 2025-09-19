@@ -22,6 +22,8 @@ export interface User {
   employee_id?: string
   phone_number?: string
   hire_date?: string
+  hourly_rate?: number
+  daily_rate?: number
   is_active: boolean
   created_at: string
 }

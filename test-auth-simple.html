@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Supabase Auth Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <h1>Simple Supabase Auth Test</h1>
+    
+    <div id="config">
+        <h2>Configuration</h2>
+        <div id="config-display"></div>
+    </div>
+    
+    <div id="test-form">
+        <h2>Test Authentication</h2>
+        <input type="email" id="email" placeholder="Email" value="test@test.com">
+        <input type="password" id="password" placeholder="Password" value="password123">
+        <button onclick="testAuth()">Test Sign In</button>
+    </div>
+    
+    <div id="results">
+        <h2>Results</h2>
+        <pre id="output"></pre>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://nyhwnafkybuxneqiaffq.supabase.co'
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55aHduYWZreWJ1eG5lcWlhZmZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcyMjM1NjksImV4cCI6MjA3Mjc5OTU2OX0.sgFadGCoquAO9NqZ8bGxBYOFnPGBXkE_Xbo4A_iuznE'
+        
+        // Display configuration
+        document.getElementById('config-display').innerHTML = `
+            <strong>URL:</strong> ${SUPABASE_URL}<br>
+            <strong>Key:</strong> ${SUPABASE_ANON_KEY.substring(0, 20)}...<br>
+            <strong>Key Length:</strong> ${SUPABASE_ANON_KEY.length}
+        `
+        
+        // Initialize Supabase client
+        let supabase
+        try {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+            log('✅ Supabase client created successfully')
+        } catch (error) {
+            log('❌ Failed to create Supabase client: ' + error.message)
+        }
+        
+        function log(message) {
+            const output = document.getElementById('output')
+            const timestamp = new Date().toLocaleTimeString()
+            output.textContent += `[${timestamp}] ${message}\n`
+            console.log(message)
+        }
+        
+        async function testAuth() {
+            const email = document.getElementById('email').value
+            const password = document.getElementById('password').value
+            
+            log(`🔐 Testing authentication for: ${email}`)
+            
+            try {
+                // Test network connectivity first
+                log('📡 Testing network connectivity...')
+                const healthResponse = await fetch(SUPABASE_URL + '/health')
+                log(`📡 Health check: ${healthResponse.status} ${healthResponse.statusText}`)
+                
+                // Test auth endpoint
+                log('🔑 Testing auth endpoint...')
+                const authResponse = await fetch(SUPABASE_URL + '/auth/v1/settings', {
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY
+                    }
+                })
+                log(`🔑 Auth endpoint: ${authResponse.status} ${authResponse.statusText}`)
+                
+                // Attempt sign in
+                log('🚀 Attempting sign in...')
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                })
+                
+                if (error) {
+                    log(`❌ Auth error: ${error.message}`)
+                    log(`❌ Error details: ${JSON.stringify(error, null, 2)}`)
+                } else {
+                    log('✅ Sign in successful!')
+                    log(`✅ User: ${JSON.stringify(data.user, null, 2)}`)
+                }
+                
+            } catch (error) {
+                log(`💥 Unexpected error: ${error.message}`)
+                log(`💥 Error details: ${JSON.stringify(error, null, 2)}`)
+            }
+        }
+        
+        // Test on page load
+        log('📋 Page loaded - ready for testing')
+    </script>
+</body>
+</html>

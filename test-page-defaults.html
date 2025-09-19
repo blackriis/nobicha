@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Employee Reports Fix</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Employee Reports Fix Test</h1>
+    
+    <h2>Problem Summary:</h2>
+    <p>Employee reports showing 0 employees despite having data in database.</p>
+    
+    <h2>Root Cause:</h2>
+    <p>Frontend was defaulting to 'today' date range, but test data is from September 2025.</p>
+    
+    <h2>✅ Fixes Applied:</h2>
+    <ol>
+        <li><strong>Backend API:</strong> Enhanced date filtering with 'all' option</li>
+        <li><strong>Database:</strong> Fixed missing total_hours calculations (86 hours for 4 employees)</li>
+        <li><strong>Frontend Default:</strong> Changed from 'today' to 'month' in AdminReportsPage</li>
+        <li><strong>Date Filter:</strong> Added 'ทั้งหมด (All)' option</li>
+    </ol>
+    
+    <h2>🧪 Test Instructions:</h2>
+    <ol>
+        <li><strong>Clear Browser Cache:</strong> Press Ctrl+Shift+R (or Cmd+Shift+R) to hard refresh</li>
+        <li><strong>Visit Admin Reports:</strong> <a href="http://localhost:3000/admin/reports" target="_blank">http://localhost:3000/admin/reports</a></li>
+        <li><strong>Expected Results:</strong>
+            <ul>
+                <li>✅ Should show 4 employees instead of 0</li>
+                <li>✅ Should show 86 total hours instead of 0</li>
+                <li>✅ Default date range should be "เดือนนี้ (Month)"</li>
+                <li>✅ "ทั้งหมด (All)" option should be available in date filter</li>
+            </ul>
+        </li>
+    </ol>
+    
+    <h2>🔍 If Still Showing 0 Employees:</h2>
+    <ol>
+        <li>Try changing date range to "ทั้งหมด (All)"</li>
+        <li>Check browser console for any errors</li>
+        <li>Verify you're logged in as admin</li>
+    </ol>
+    
+    <div class="info">
+        <h3>📊 Technical Details:</h3>
+        <p><strong>API Test Results:</strong></p>
+        <ul>
+            <li>Month range: 4 employees, 86 hours ✅</li>
+            <li>All range: 4 employees, 86 hours ✅</li>
+            <li>Today range: 0 employees (correct - no current entries)</li>
+        </ul>
+    </div>
+</body>
+</html>

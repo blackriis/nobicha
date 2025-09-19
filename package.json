@@ -1,6 +1,7 @@
 {
   "name": "employee-management-system",
   "version": "1.0.0",
+  "type": "module",
   "private": true,
   "workspaces": [
     "apps/*",
@@ -24,6 +25,7 @@
     "dotenv": "^17.2.2"
   },
   "devDependencies": {
+    "shadcn": "^3.3.0",
     "supabase": "^2.39.2"
   }
 }

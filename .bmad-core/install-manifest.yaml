@@ -1,10 +1,12 @@
-version: 4.44.0
-installed_at: '2025-09-08T06:10:06.130Z'
+version: 4.43.1
+installed_at: '2025-09-19T03:01:41.839Z'
 install_type: full
 agent: null
 ides_setup:
   - cursor
   - claude-code
+  - kilo
+  - gemini
   - codex
   - codex-web
 expansion_packs: []
@@ -15,14 +17,11 @@ files:
   - path: .bmad-core/user-guide.md
     hash: fa8776b4e0bfa3f7
     modified: false
-  - path: .bmad-core/install-manifest.yaml
-    hash: 1e07f605f2d8d564
-    modified: false
   - path: .bmad-core/enhanced-ide-development-workflow.md
     hash: 39beb3516c070e2b
     modified: false
   - path: .bmad-core/core-config.yaml
-    hash: 94ce5b2faad48235
+    hash: 073cf6d2527c545d
     modified: false
   - path: .bmad-core/workflows/greenfield-ui.yaml
     hash: 2b595f235c095790
@@ -79,7 +78,7 @@ files:
     hash: 5b89b783cd2cacdb
     modified: false
   - path: .bmad-core/templates/brownfield-architecture-tmpl.yaml
-    hash: be2b8c7fa9e5864d
+    hash: ce6e86071a204d43
     modified: false
   - path: .bmad-core/templates/brainstorming-output-tmpl.yaml
     hash: ba806c97165c8178
@@ -214,7 +213,7 @@ files:
     hash: 374701173ce61d73
     modified: false
   - path: .bmad-core/agents/bmad-master.md
-    hash: 8f42dc6208abccab
+    hash: d344fb86fc65643c
     modified: false
   - path: .bmad-core/agents/architect.md
     hash: 4e7b28055a522dea

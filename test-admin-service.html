@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ทดสอบ Admin Service</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        .btn {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #007bff;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background-color: #f8d7da;
+        }
+        .success {
+            border-left-color: #28a745;
+            background-color: #d4edda;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 200px;
+        }
+        .auth-status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        .auth-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .auth-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ทดสอบ Admin Service และ Employee Reports</h1>
+        
+        <div id="auth-status" class="auth-status" style="display:none;"></div>
+        
+        <div class="section">
+            <h3>1. Authentication</h3>
+            <input type="email" id="email" placeholder="Email" value="manager.silom@test.com">
+            <input type="password" id="password" placeholder="Password" value="Manager123!">
+            <button class="btn" onclick="login()">Login</button>
+            <button class="btn" onclick="logout()">Logout</button>
+            <button class="btn" onclick="checkAuth()">ตรวจสอบสถานะ</button>
+        </div>
+
+        <div class="section">
+            <h3>2. Date Range Selection</h3>
+            <select id="dateRange">
+                <option value="today">วันนี้</option>
+                <option value="week">สัปดาห์นี้</option>
+                <option value="month" selected>เดือนนี้</option>
+                <option value="all">ทั้งหมด</option>
+                <option value="custom">กำหนดเอง</option>
+            </select>
+            <input type="date" id="startDate" style="display:none;">
+            <input type="date" id="endDate" style="display:none;">
+        </div>
+
+        <div class="section">
+            <h3>3. Employee Reports API Test</h3>
+            <button class="btn" onclick="testEmployeeReports()">ทดสอบ Employee Reports</button>
+            <button class="btn" onclick="testDirectAPI()">ทดสอบ API โดยตรง</button>
+            <button class="btn" onclick="testSupabaseQuery()">ทดสอบ Supabase Query</button>
+            <div id="employee-result" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="section">
+            <h3>4. Debug Information</h3>
+            <button class="btn" onclick="showDebugInfo()">แสดงข้อมูล Debug</button>
+            <div id="debug-result" class="result" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Initialize Supabase client
+        const supabaseUrl = 'https://nyhwnafkybuxneqiaffq.supabase.co';
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55aHduYWZreWJ1eG5lcWlhZmZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcyMjM1NjksImV4cCI6MjA3Mjc5OTU2OX0.dXzgKpHFyDe9JNvm_0GH3w_S9gH4rNRQhrm4fDih7M';
+        const supabase = supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+        let currentUser = null;
+
+        // Handle date range selection
+        document.getElementById('dateRange').addEventListener('change', function() {
+            const customInputs = document.querySelectorAll('#startDate, #endDate');
+            if (this.value === 'custom') {
+                customInputs.forEach(input => input.style.display = 'inline-block');
+            } else {
+                customInputs.forEach(input => input.style.display = 'none');
+            }
+        });
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+                
+                if (error) {
+                    showAuthStatus(`Login Error: ${error.message}`, false);
+                } else {
+                    currentUser = data.user;
+                    showAuthStatus(`Login สำเร็จ! User: ${data.user.email}`, true);
+                }
+            } catch (error) {
+                showAuthStatus(`Login Error: ${error.message}`, false);
+            }
+        }
+
+        async function logout() {
+            try {
+                const { error } = await supabase.auth.signOut();
+                if (error) {
+                    showAuthStatus(`Logout Error: ${error.message}`, false);
+                } else {
+                    currentUser = null;
+                    showAuthStatus('Logout สำเร็จ', true);
+                }
+            } catch (error) {
+                showAuthStatus(`Logout Error: ${error.message}`, false);
+            }
+        }
+
+        async function checkAuth() {
+            try {
+                const { data: { user }, error } = await supabase.auth.getUser();
+                if (error) {
+                    showAuthStatus(`Auth Check Error: ${error.message}`, false);
+                } else if (user) {
+                    currentUser = user;
+                    showAuthStatus(`ผู้ใช้ที่ Login: ${user.email} (ID: ${user.id})`, true);
+                } else {
+                    currentUser = null;
+                    showAuthStatus('ไม่มีผู้ใช้ Login อยู่', false);
+                }
+            } catch (error) {
+                showAuthStatus(`Auth Check Error: ${error.message}`, false);
+            }
+        }
+
+        function showAuthStatus(message, isSuccess) {
+            const statusDiv = document.getElementById('auth-status');
+            statusDiv.style.display = 'block';
+            statusDiv.className = `auth-status ${isSuccess ? 'auth-success' : 'auth-error'}`;
+            statusDiv.textContent = message;
+        }
+
+        function getDateRangeParams() {
+            const dateRange = document.getElementById('dateRange').value;
+            const params = new URLSearchParams();
+            params.set('dateRange', dateRange);
+            
+            if (dateRange === 'custom') {
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                if (startDate) params.set('startDate', startDate);
+                if (endDate) params.set('endDate', endDate);
+            }
+            
+            return params.toString();
+        }
+
+        async function testEmployeeReports() {
+            const resultDiv = document.getElementById('employee-result');
+            
+            try {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result';
+                resultDiv.textContent = 'กำลังทดสอบ Employee Reports...';
+                
+                if (!currentUser) {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = 'กรุณา Login ก่อน';
+                    return;
+                }
+                
+                const queryParams = getDateRangeParams();
+                const response = await fetch(`/api/admin/reports/employees?${queryParams}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `Employee Reports API Success (${response.status}):
+${JSON.stringify(result, null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `Employee Reports API Error (${response.status}):
+${JSON.stringify(result, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `Fetch Error: ${error.message}`;
+            }
+        }
+
+        async function testDirectAPI() {
+            const resultDiv = document.getElementById('employee-result');
+            
+            try {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result';
+                resultDiv.textContent = 'กำลังทดสอบ Direct API...';
+                
+                const queryParams = getDateRangeParams();
+                const response = await fetch(`http://localhost:3000/api/admin/reports/employees?${queryParams}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+                
+                const result = await response.json();
+                
+                resultDiv.className = response.ok ? 'result success' : 'result error';
+                resultDiv.textContent = `Direct API Response (${response.status}):
+${JSON.stringify(result, null, 2)}`;
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `Direct API Error: ${error.message}`;
+            }
+        }
+
+        async function testSupabaseQuery() {
+            const resultDiv = document.getElementById('employee-result');
+            
+            try {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result';
+                resultDiv.textContent = 'กำลังทดสอบ Supabase Query...';
+                
+                // Test time_entries query
+                const { data: timeEntries, error: timeError } = await supabase
+                    .from('time_entries')
+                    .select(`
+                        id,
+                        user_id,
+                        total_hours,
+                        check_in_time,
+                        check_out_time,
+                        users!inner(full_name, employee_id),
+                        branches!inner(name)
+                    `)
+                    .limit(10);
+                
+                if (timeError) {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `Supabase Query Error: ${timeError.message}`;
+                } else {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `Supabase Query Success:
+Count: ${timeEntries.length}
+Data: ${JSON.stringify(timeEntries, null, 2)}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `Supabase Query Error: ${error.message}`;
+            }
+        }
+
+        async function showDebugInfo() {
+            const resultDiv = document.getElementById('debug-result');
+            
+            try {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result';
+                resultDiv.textContent = 'กำลังรวบรวมข้อมูล Debug...';
+                
+                const debugInfo = {
+                    currentUser: currentUser ? {
+                        id: currentUser.id,
+                        email: currentUser.email,
+                        lastSignIn: currentUser.last_sign_in_at
+                    } : null,
+                    supabaseUrl: supabaseUrl,
+                    currentUrl: window.location.href,
+                    userAgent: navigator.userAgent,
+                    timestamp: new Date().toISOString()
+                };
+                
+                // Test session
+                const { data: session } = await supabase.auth.getSession();
+                debugInfo.session = session.session ? {
+                    accessToken: session.session.access_token ? 'Present' : 'Missing',
+                    refreshToken: session.session.refresh_token ? 'Present' : 'Missing',
+                    expiresAt: session.session.expires_at
+                } : null;
+                
+                resultDiv.className = 'result';
+                resultDiv.textContent = `Debug Information:
+${JSON.stringify(debugInfo, null, 2)}`;
+                
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `Debug Error: ${error.message}`;
+            }
+        }
+
+        // Check auth on page load
+        window.addEventListener('load', checkAuth);
+    </script>
+</body>
+</html>
