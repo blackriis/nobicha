@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Error Testing Tool</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #555;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 12px;
+            border: 1px solid #e9ecef;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-success { background-color: #28a745; }
+        .status-error { background-color: #dc3545; }
+        .status-warning { background-color: #ffc107; }
+        .status-info { background-color: #17a2b8; }
+        .clear-btn {
+            background-color: #6c757d;
+            float: right;
+        }
+        .test-coordinates {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .coordinate-card {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+        }
+        .coordinate-card h4 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .coordinate-card p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 GPS Error Testing Tool</h1>
+        <p style="text-align: center; color: #666;">เครื่องมือทดสอบและแก้ไขปัญหา CoreLocation Errors</p>
+        
+        <button class="clear-btn" onclick="clearResults()">Clear Results</button>
+        
+        <!-- System Info Section -->
+        <div class="test-section">
+            <h3>📱 System Information</h3>
+            <button onclick="checkSystemInfo()">Check System Info</button>
+            <div id="system-info"></div>
+        </div>
+
+        <!-- Permission Testing -->
+        <div class="test-section">
+            <h3>🔐 Permission Testing</h3>
+            <button onclick="checkPermissionStatus()">Check Permission Status</button>
+            <button onclick="requestPermission()">Request Permission</button>
+            <div id="permission-results"></div>
+        </div>
+
+        <!-- Basic GPS Testing -->
+        <div class="test-section">
+            <h3>📍 Basic GPS Testing</h3>
+            <button onclick="testBasicGPS()">Test Basic GPS</button>
+            <button onclick="testHighAccuracyGPS()">Test High Accuracy GPS</button>
+            <button onclick="testQuickGPS()">Test Quick GPS (5s timeout)</button>
+            <div id="gps-results"></div>
+        </div>
+
+        <!-- Error Simulation -->
+        <div class="test-section">
+            <h3>⚠️ Error Simulation</h3>
+            <button onclick="simulateTimeout()">Simulate Timeout Error</button>
+            <button onclick="simulateEmptyError()">Simulate Empty Object Error</button>
+            <button onclick="testErrorHandling()">Test Error Handling Function</button>
+            <div id="error-results"></div>
+        </div>
+
+        <!-- Test Coordinates -->
+        <div class="test-section">
+            <h3>🎯 Test Coordinates</h3>
+            <p>พิกัดสำหรับทดสอบแต่ละสาขา:</p>
+            <div class="test-coordinates">
+                <div class="coordinate-card">
+                    <h4>สาขาสีลม</h4>
+                    <p><strong>Lat:</strong> 13.7563</p>
+                    <p><strong>Lng:</strong> 100.5018</p>
+                    <button onclick="testCoordinate(13.7563, 100.5018, 'สาขาสีลม')">Test This Location</button>
+                </div>
+                <div class="coordinate-card">
+                    <h4>สาขาสุขุมวิท</h4>
+                    <p><strong>Lat:</strong> 13.7398</p>
+                    <p><strong>Lng:</strong> 100.5612</p>
+                    <button onclick="testCoordinate(13.7398, 100.5612, 'สาขาสุขุมวิท')">Test This Location</button>
+                </div>
+                <div class="coordinate-card">
+                    <h4>สาขาจตุจักร</h4>
+                    <p><strong>Lat:</strong> 13.8077</p>
+                    <p><strong>Lng:</strong> 100.5538</p>
+                    <button onclick="testCoordinate(13.8077, 100.5538, 'สาขาจตุจักร')">Test This Location</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="test-section">
+            <h3>📊 All Test Results</h3>
+            <div id="all-results"></div>
+        </div>
+    </div>
+
+    <script>
+        let testResults = [];
+
+        function addResult(type, title, data, notes = '') {
+            const timestamp = new Date().toLocaleString('th-TH');
+            const result = {
+                type,
+                title,
+                data,
+                notes,
+                timestamp
+            };
+            testResults.push(result);
+            updateAllResults();
+        }
+
+        function updateAllResults() {
+            const container = document.getElementById('all-results');
+            container.innerHTML = testResults.map(result => {
+                const statusClass = `status-${result.type}`;
+                const resultClass = result.type;
+                return `
+                    <div class="${resultClass}">
+                        <span class="status-indicator ${statusClass}"></span>
+                        <strong>${result.title}</strong> - ${result.timestamp}
+                        ${result.notes ? `<br><small>${result.notes}</small>` : ''}
+                        <pre>${JSON.stringify(result.data, null, 2)}</pre>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function clearResults() {
+            testResults = [];
+            document.getElementById('all-results').innerHTML = '';
+            document.getElementById('system-info').innerHTML = '';
+            document.getElementById('permission-results').innerHTML = '';
+            document.getElementById('gps-results').innerHTML = '';
+            document.getElementById('error-results').innerHTML = '';
+        }
+
+        function checkSystemInfo() {
+            const info = {
+                userAgent: navigator.userAgent,
+                platform: navigator.platform,
+                language: navigator.language,
+                cookieEnabled: navigator.cookieEnabled,
+                onLine: navigator.onLine,
+                geolocationSupported: 'geolocation' in navigator,
+                permissionsSupported: 'permissions' in navigator,
+                protocol: window.location.protocol,
+                isSecureContext: window.isSecureContext
+            };
+
+            document.getElementById('system-info').innerHTML = `
+                <div class="info">
+                    <strong>System Information:</strong>
+                    <pre>${JSON.stringify(info, null, 2)}</pre>
+                </div>
+            `;
+
+            addResult('info', 'System Info Check', info);
+        }
+
+        async function checkPermissionStatus() {
+            if (!('permissions' in navigator)) {
+                const error = 'Permissions API not supported';
+                document.getElementById('permission-results').innerHTML = `
+                    <div class="warning">${error}</div>
+                `;
+                addResult('warning', 'Permission Status Check', { error });
+                return;
+            }
+
+            try {
+                const result = await navigator.permissions.query({name: 'geolocation'});
+                const status = {
+                    state: result.state,
+                    onchange: typeof result.onchange
+                };
+
+                document.getElementById('permission-results').innerHTML = `
+                    <div class="info">
+                        <strong>Permission Status:</strong> ${result.state}
+                        <br><small>States: granted, denied, prompt</small>
+                    </div>
+                `;
+
+                addResult('info', 'Permission Status', status);
+            } catch (error) {
+                document.getElementById('permission-results').innerHTML = `
+                    <div class="error">Permission check failed: ${error.message}</div>
+                `;
+                addResult('error', 'Permission Status Check Failed', { error: error.message });
+            }
+        }
+
+        function requestPermission() {
+            if (!('geolocation' in navigator)) {
+                const error = 'Geolocation not supported';
+                document.getElementById('permission-results').innerHTML = `
+                    <div class="error">${error}</div>
+                `;
+                addResult('error', 'Permission Request', { error });
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    document.getElementById('permission-results').innerHTML = `
+                        <div class="success">Permission granted! Location received.</div>
+                    `;
+                    addResult('success', 'Permission Request', {
+                        granted: true,
+                        coords: position.coords
+                    });
+                },
+                (error) => {
+                    document.getElementById('permission-results').innerHTML = `
+                        <div class="error">Permission denied or error: ${error.message}</div>
+                    `;
+                    addResult('error', 'Permission Request', {
+                        granted: false,
+                        error: error.message,
+                        code: error.code
+                    });
+                }
+            );
+        }
+
+        function testBasicGPS() {
+            const button = event.target;
+            button.disabled = true;
+            button.textContent = 'Testing...';
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    button.disabled = false;
+                    button.textContent = 'Test Basic GPS';
+                    
+                    const result = {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                        accuracy: position.coords.accuracy,
+                        altitude: position.coords.altitude,
+                        heading: position.coords.heading,
+                        speed: position.coords.speed,
+                        timestamp: position.timestamp
+                    };
+
+                    document.getElementById('gps-results').innerHTML = `
+                        <div class="success">
+                            <strong>✅ GPS Success!</strong><br>
+                            Lat: ${result.latitude}<br>
+                            Lng: ${result.longitude}<br>
+                            Accuracy: ${result.accuracy} meters
+                        </div>
+                    `;
+
+                    addResult('success', 'Basic GPS Test', result);
+                },
+                (error) => {
+                    button.disabled = false;
+                    button.textContent = 'Test Basic GPS';
+                    
+                    const errorInfo = {
+                        code: error.code,
+                        message: error.message,
+                        type: typeof error,
+                        keys: Object.keys(error),
+                        string: String(error)
+                    };
+
+                    document.getElementById('gps-results').innerHTML = `
+                        <div class="error">
+                            <strong>❌ GPS Error!</strong><br>
+                            Code: ${error.code}<br>
+                            Message: ${error.message || 'No message'}
+                        </div>
+                    `;
+
+                    addResult('error', 'Basic GPS Test', errorInfo, getErrorCodeDescription(error.code));
+                }
+            );
+        }
+
+        function testHighAccuracyGPS() {
+            const button = event.target;
+            button.disabled = true;
+            button.textContent = 'Testing...';
+
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 30000
+            };
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    button.disabled = false;
+                    button.textContent = 'Test High Accuracy GPS';
+                    
+                    const result = {
+                        ...position.coords,
+                        timestamp: position.timestamp,
+                        options: options
+                    };
+
+                    const accuracyClass = position.coords.accuracy < 100 ? 'success' : 
+                                        position.coords.accuracy < 1000 ? 'warning' : 'error';
+
+                    document.getElementById('gps-results').innerHTML = `
+                        <div class="${accuracyClass}">
+                            <strong>📍 High Accuracy GPS Result</strong><br>
+                            Accuracy: ${position.coords.accuracy} meters<br>
+                            ${position.coords.accuracy < 100 ? '✅ Excellent accuracy' :
+                              position.coords.accuracy < 1000 ? '⚠️ Fair accuracy' : '❌ Poor accuracy'}
+                        </div>
+                    `;
+
+                    addResult(accuracyClass === 'error' ? 'warning' : 'success', 'High Accuracy GPS Test', result);
+                },
+                (error) => {
+                    button.disabled = false;
+                    button.textContent = 'Test High Accuracy GPS';
+                    
+                    document.getElementById('gps-results').innerHTML = `
+                        <div class="error">
+                            <strong>❌ High Accuracy GPS Failed!</strong><br>
+                            This might be the CoreLocation error you're experiencing.
+                        </div>
+                    `;
+
+                    addResult('error', 'High Accuracy GPS Test', {
+                        code: error.code,
+                        message: error.message,
+                        options: options
+                    }, 'This could be the kCLErrorLocationUnknown issue');
+                },
+                options
+            );
+        }
+
+        function testQuickGPS() {
+            const button = event.target;
+            button.disabled = true;
+            button.textContent = 'Testing...';
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    button.disabled = false;
+                    button.textContent = 'Test Quick GPS (5s timeout)';
+                    
+                    document.getElementById('gps-results').innerHTML = `
+                        <div class="success">
+                            <strong>⚡ Quick GPS Success!</strong><br>
+                            Got location within 5 seconds
+                        </div>
+                    `;
+
+                    addResult('success', 'Quick GPS Test', position.coords);
+                },
+                (error) => {
+                    button.disabled = false;
+                    button.textContent = 'Test Quick GPS (5s timeout)';
+                    
+                    document.getElementById('gps-results').innerHTML = `
+                        <div class="warning">
+                            <strong>⏱️ Quick GPS Timeout</strong><br>
+                            Location took longer than 5 seconds
+                        </div>
+                    `;
+
+                    addResult('warning', 'Quick GPS Test', {
+                        code: error.code,
+                        message: error.message
+                    }, 'Timeout after 5 seconds - try longer timeout');
+                },
+                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+            );
+        }
+
+        function simulateTimeout() {
+            const error = {
+                code: 3,
+                message: 'Timeout expired',
+                TIMEOUT: 3
+            };
+
+            document.getElementById('error-results').innerHTML = `
+                <div class="warning">
+                    <strong>⏱️ Simulated Timeout Error</strong><br>
+                    This is how timeout errors appear
+                </div>
+            `;
+
+            addResult('warning', 'Simulated Timeout Error', error);
+        }
+
+        function simulateEmptyError() {
+            const error = {};
+
+            document.getElementById('error-results').innerHTML = `
+                <div class="error">
+                    <strong>🔥 Simulated Empty Object Error</strong><br>
+                    This is the type of error that causes issues in debugging
+                </div>
+            `;
+
+            addResult('error', 'Simulated Empty Object Error', error, 'This is what causes the {} in console logs');
+        }
+
+        function testErrorHandling() {
+            // Test our error handling function with various error types
+            const testErrors = [
+                { code: 1, message: 'Permission denied' },
+                { code: 2, message: 'Position unavailable' },
+                { code: 3, message: 'Timeout' },
+                {},
+                null,
+                undefined,
+                new Error('Custom error'),
+                'String error'
+            ];
+
+            const results = testErrors.map(error => {
+                return {
+                    input: error,
+                    handled: handleGeolocationError(error)
+                };
+            });
+
+            document.getElementById('error-results').innerHTML = `
+                <div class="info">
+                    <strong>🧪 Error Handling Test Complete</strong><br>
+                    Tested ${testErrors.length} different error types
+                </div>
+            `;
+
+            addResult('info', 'Error Handling Function Test', results);
+        }
+
+        function testCoordinate(lat, lng, name) {
+            // Simulate a successful position with the test coordinates
+            const mockPosition = {
+                coords: {
+                    latitude: lat,
+                    longitude: lng,
+                    accuracy: 10,
+                    altitude: null,
+                    altitudeAccuracy: null,
+                    heading: null,
+                    speed: null
+                },
+                timestamp: Date.now()
+            };
+
+            addResult('info', `Test Coordinate: ${name}`, mockPosition.coords, 
+                     `This is how coordinates for ${name} should look`);
+        }
+
+        function handleGeolocationError(error) {
+            // This is our actual error handling logic
+            let errorMessage = 'ไม่สามารถเข้าถึงตำแหน่งได้';
+
+            if (error === null || error === undefined) {
+                return 'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ กรุณาลองใหม่อีกครั้ง';
+            }
+
+            if (error && typeof error === 'object' && Object.keys(error).length === 0) {
+                return 'ไม่สามารถเข้าถึงตำแหน่งได้ กรุณาตรวจสอบการอนุญาต GPS และลองใหม่อีกครั้ง';
+            }
+
+            if (error.code !== undefined) {
+                switch (error.code) {
+                    case 1:
+                        errorMessage = 'กรุณาอนุญาตการเข้าถึงตำแหน่งในเบราว์เซอร์';
+                        break;
+                    case 2:
+                        errorMessage = 'ไม่สามารถระบุตำแหน่งได้ กรุณาตรวจสอบ GPS และลองใหม่อีกครั้ง';
+                        break;
+                    case 3:
+                        errorMessage = 'หมดเวลาการค้นหาตำแหน่ง กรุณาลองใหม่อีกครั้ง';
+                        break;
+                    default:
+                        errorMessage = `เกิดข้อผิดพลาดตำแหน่ง: ${error.message || 'ไม่ทราบสาเหตุ'}`;
+                }
+            } else if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            }
+
+            return errorMessage;
+        }
+
+        function getErrorCodeDescription(code) {
+            switch (code) {
+                case 1: return 'PERMISSION_DENIED - User denied location access';
+                case 2: return 'POSITION_UNAVAILABLE - Location unavailable (GPS off, no signal, etc.)';
+                case 3: return 'TIMEOUT - Location request timed out';
+                default: return 'Unknown error code';
+            }
+        }
+
+        // Auto-run system info check on page load
+        window.addEventListener('load', () => {
+            checkSystemInfo();
+        });
+    </script>
+</body>
+</html>

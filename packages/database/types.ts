@@ -45,7 +45,10 @@ export interface TimeEntry {
   branch_id: string
   check_in_time: string
   check_out_time?: string
-  selfie_url?: string
+  check_in_selfie_url?: string
+  check_out_selfie_url?: string
+  check_in_location?: Record<string, unknown>
+  check_out_location?: Record<string, unknown>
   break_duration: number
   total_hours?: number
   notes?: string
@@ -149,6 +152,35 @@ export type SalesReportUpdate = Partial<Omit<SalesReport, 'id' | 'created_at'>>
 export type PayrollCycleUpdate = Partial<Omit<PayrollCycle, 'id' | 'created_at'>>
 export type PayrollDetailUpdate = Partial<Omit<PayrollDetail, 'id' | 'created_at'>>
 export type AuditLogUpdate = Partial<Omit<AuditLog, 'id' | 'created_at'>>
+
+// Story 5.1: Time Entry Detail types
+export interface TimeEntryDetail {
+  id: string
+  employee_id: string
+  branch: {
+    id: string
+    name: string
+    latitude: number
+    longitude: number
+  }
+  check_in_time: string
+  check_out_time?: string
+  check_in_selfie_url: string
+  check_out_selfie_url?: string
+  check_in_location?: {
+    latitude: number
+    longitude: number
+    distance_from_branch?: number
+  }
+  material_usage: Array<{
+    raw_material: {
+      name: string
+      unit: string
+    }
+    quantity_used: number
+  }>
+  total_hours?: number
+}
 
 // Database interface
 export interface Database {
