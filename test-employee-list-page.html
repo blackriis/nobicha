@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Employee List Page</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .loading { background-color: #fff3cd; border-color: #ffeaa7; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        .employee-card { border: 1px solid #ddd; padding: 10px; margin: 10px 0; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Employee List Page</h1>
+    
+    <div class="test-section">
+        <h3>Test Options:</h3>
+        <button onclick="testDirectQuery()">Test Direct Query (Service Role)</button>
+        <button onclick="testAPIEndpoint()">Test API Endpoint</button>
+        <button onclick="testEmployeeDetail()">Test Employee Detail</button>
+    </div>
+
+    <div id="results" class="test-section">
+        <h3>Test Results:</h3>
+        <p>Click a button above to test the functionality</p>
+    </div>
+
+    <script>
+        async function testDirectQuery() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.className = 'test-section loading';
+            resultsDiv.innerHTML = '<h3>Test Results:</h3><p>🔄 Testing direct query with service role...</p>';
+
+            try {
+                // This would normally require server-side implementation
+                // For now, we'll test the API endpoint
+                const response = await fetch('http://localhost:3003/api/admin/employees', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultsDiv.className = 'test-section success';
+                    resultsDiv.innerHTML = `
+                        <h3>✅ Direct Query Success!</h3>
+                        <p><strong>Total employees:</strong> ${data.total}</p>
+                        <p><strong>Page:</strong> ${data.page}</p>
+                        <p><strong>Limit:</strong> ${data.limit}</p>
+                        <div class="employee-list">
+                            ${data.data.map(emp => `
+                                <div class="employee-card">
+                                    <strong>${emp.full_name}</strong> (${emp.email})<br>
+                                    Role: ${emp.role} | Active: ${emp.is_active}<br>
+                                    Branch: ${emp.branch_name}<br>
+                                    ID: ${emp.id}
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } else {
+                    resultsDiv.className = 'test-section error';
+                    resultsDiv.innerHTML = `
+                        <h3>❌ Direct Query Error!</h3>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>Error:</strong> ${data.error || 'Unknown error'}</p>
+                    `;
+                }
+            } catch (error) {
+                resultsDiv.className = 'test-section error';
+                resultsDiv.innerHTML = `
+                    <h3>❌ Network Error!</h3>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                    <p>Make sure the development server is running on port 3003</p>
+                `;
+            }
+        }
+
+        async function testAPIEndpoint() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.className = 'test-section loading';
+            resultsDiv.innerHTML = '<h3>Test Results:</h3><p>🔄 Testing API endpoint...</p>';
+
+            try {
+                const response = await fetch('http://localhost:3003/api/admin/employees', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                resultsDiv.className = response.ok ? 'test-section success' : 'test-section error';
+                resultsDiv.innerHTML = `
+                    <h3>${response.ok ? '✅' : '❌'} API Endpoint Test</h3>
+                    <p><strong>Status:</strong> ${response.status}</p>
+                    <p><strong>Response:</strong></p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultsDiv.className = 'test-section error';
+                resultsDiv.innerHTML = `
+                    <h3>❌ Network Error!</h3>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                `;
+            }
+        }
+
+        async function testEmployeeDetail() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.className = 'test-section loading';
+            resultsDiv.innerHTML = '<h3>Test Results:</h3><p>🔄 Testing employee detail...</p>';
+
+            try {
+                const employeeId = 'b5917cd9-bd48-4715-be70-5fdf0cca0764';
+                const response = await fetch(`http://localhost:3003/api/admin/employees/${employeeId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                resultsDiv.className = response.ok ? 'test-section success' : 'test-section error';
+                resultsDiv.innerHTML = `
+                    <h3>${response.ok ? '✅' : '❌'} Employee Detail Test</h3>
+                    <p><strong>Employee ID:</strong> ${employeeId}</p>
+                    <p><strong>Status:</strong> ${response.status}</p>
+                    <p><strong>Response:</strong></p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultsDiv.className = 'test-section error';
+                resultsDiv.innerHTML = `
+                    <h3>❌ Network Error!</h3>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                `;
+            }
+        }
+
+        // Test the page load
+        window.addEventListener('load', () => {
+            console.log('🧪 Employee List Test Page loaded');
+            console.log('📍 Server should be running on: http://localhost:3003');
+        });
+    </script>
+</body>
+</html>
