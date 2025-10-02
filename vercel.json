@@ -3,7 +3,6 @@
   "outputDirectory": "apps/web/.next",
   "installCommand": "npm install && cd apps/web && npm install",
   "framework": "nextjs",
-  "rootDirectory": "apps/web",
   "functions": {
     "apps/web/src/app/api/**/*.ts": {
       "runtime": "nodejs20.x"
