@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        video {
+            width: 100%;
+            height: 300px;
+            background-color: #333;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+        }
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        .success {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+        }
+        button {
+            margin: 10px 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background-color: #2196F3;
+            color: white;
+        }
+        button:hover {
+            background-color: #1976D2;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎥 Camera Test - ทดสอบกล้อง</h1>
+    
+    <div id="status" class="status">
+        พร้อมเริ่มทดสอบ
+    </div>
+    
+    <video id="video" autoplay playsinline muted></video>
+    
+    <div>
+        <button onclick="startCamera()">เริ่มกล้อง</button>
+        <button onclick="stopCamera()">หยุดกล้อง</button>
+        <button onclick="debugInfo()">ข้อมูล Debug</button>
+        <button onclick="testConstraints()">ทดสอบ Constraints</button>
+    </div>
+    
+    <div id="debug-output"></div>
+
+    <script>
+        let stream = null;
+        const video = document.getElementById('video');
+        const status = document.getElementById('status');
+        const debugOutput = document.getElementById('debug-output');
+
+        function updateStatus(message, type = 'normal') {
+            status.textContent = message;
+            status.className = 'status';
+            if (type === 'error') status.classList.add('error');
+            if (type === 'success') status.classList.add('success');
+            console.log(message);
+        }
+
+        async function startCamera() {
+            try {
+                updateStatus('กำลังขออนุญาตใช้กล้อง...');
+                
+                // Check support
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error('เบราว์เซอร์ไม่รองรับ getUserMedia');
+                }
+
+                // Basic constraints
+                const constraints = {
+                    video: {
+                        facingMode: 'user',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    },
+                    audio: false
+                };
+
+                console.log('Requesting camera with constraints:', constraints);
+                stream = await navigator.mediaDevices.getUserMedia(constraints);
+                console.log('Got stream:', stream);
+                
+                updateStatus('ได้รับ stream แล้ว กำลังเชื่อมต่อกับ video element...');
+                
+                // Assign to video element
+                video.srcObject = stream;
+                
+                // Wait for video to be ready
+                video.addEventListener('loadedmetadata', () => {
+                    console.log('Video metadata loaded');
+                    updateStatus(`กล้องพร้อมใช้งาน (${video.videoWidth}x${video.videoHeight})`, 'success');
+                });
+
+                video.addEventListener('playing', () => {
+                    console.log('Video is playing');
+                    updateStatus('กล้องทำงานปกติ', 'success');
+                });
+
+                video.addEventListener('error', (e) => {
+                    console.error('Video error:', e);
+                    updateStatus('เกิดข้อผิดพลาดที่ video element', 'error');
+                });
+
+            } catch (error) {
+                console.error('Camera error:', error);
+                updateStatus(`ข้อผิดพลาด: ${error.message}`, 'error');
+            }
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => {
+                    console.log('Stopping track:', track.kind, track.readyState);
+                    track.stop();
+                });
+                stream = null;
+                video.srcObject = null;
+                updateStatus('หยุดกล้องแล้ว');
+            }
+        }
+
+        function debugInfo() {
+            const info = {
+                'Browser Support': {
+                    'navigator.mediaDevices': !!navigator.mediaDevices,
+                    'getUserMedia': !!navigator.mediaDevices?.getUserMedia,
+                    'User Agent': navigator.userAgent
+                },
+                'Stream Info': stream ? {
+                    'Active': stream.active,
+                    'ID': stream.id,
+                    'Tracks': stream.getTracks().map(track => ({
+                        kind: track.kind,
+                        enabled: track.enabled,
+                        readyState: track.readyState,
+                        muted: track.muted,
+                        settings: track.getSettings()
+                    }))
+                } : 'No stream',
+                'Video Element': {
+                    'srcObject': !!video.srcObject,
+                    'readyState': video.readyState,
+                    'videoWidth': video.videoWidth,
+                    'videoHeight': video.videoHeight,
+                    'paused': video.paused,
+                    'currentTime': video.currentTime,
+                    'duration': video.duration
+                }
+            };
+
+            debugOutput.innerHTML = '<h3>Debug Information:</h3><pre>' + 
+                JSON.stringify(info, null, 2) + '</pre>';
+            console.log('Debug info:', info);
+        }
+
+        async function testConstraints() {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                
+                console.log('Available video devices:', videoDevices);
+                updateStatus(`พบกล้อง ${videoDevices.length} ตัว`);
+
+                // Test different constraint sets
+                const constraintSets = [
+                    { video: true },
+                    { video: { facingMode: 'user' } },
+                    { video: { width: 640, height: 480 } },
+                    { video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } } }
+                ];
+
+                for (let i = 0; i < constraintSets.length; i++) {
+                    try {
+                        console.log(`Testing constraint set ${i + 1}:`, constraintSets[i]);
+                        const testStream = await navigator.mediaDevices.getUserMedia(constraintSets[i]);
+                        console.log(`Constraint set ${i + 1} works:`, testStream.getVideoTracks()[0].getSettings());
+                        testStream.getTracks().forEach(track => track.stop());
+                    } catch (err) {
+                        console.log(`Constraint set ${i + 1} failed:`, err.message);
+                    }
+                }
+            } catch (error) {
+                console.error('Device enumeration failed:', error);
+                updateStatus('ไม่สามารถตรวจสอบอุปกรณ์ได้', 'error');
+            }
+        }
+
+        // Auto-start for testing
+        // Uncomment the next line if you want the camera to start automatically
+        // setTimeout(startCamera, 1000);
+    </script>
+</body>
+</html>

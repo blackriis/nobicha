@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Date Range Picker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .date-info {
+            background: #e7f3ff;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📅 Test Date Range Picker</h1>
+        <p>ทดสอบการกรองข้อมูลตามช่วงเวลาที่เลือก</p>
+
+        <div class="test-section">
+            <h3>1. ทดสอบช่วงเวลาต่างๆ</h3>
+            <button onclick="testDateRange('today')">วันนี้</button>
+            <button onclick="testDateRange('yesterday')">เมื่อวาน</button>
+            <button onclick="testDateRange('thisWeek')">สัปดาห์นี้</button>
+            <button onclick="testDateRange('lastWeek')">สัปดาห์ที่แล้ว</button>
+            <button onclick="testDateRange('thisMonth')">เดือนนี้</button>
+            <button onclick="testDateRange('lastMonth')">เดือนที่แล้ว</button>
+            <button onclick="testDateRange('last3Months')">3 เดือนที่แล้ว</button>
+            <div id="dateRangeResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. ทดสอบช่วงเวลาที่กำหนดเอง</h3>
+            <div class="date-info">
+                <label>วันที่เริ่มต้น: <input type="date" id="fromDate" /></label><br><br>
+                <label>วันที่สิ้นสุด: <input type="date" id="toDate" /></label><br><br>
+                <button onclick="testCustomDateRange()">ทดสอบช่วงเวลาที่กำหนดเอง</button>
+            </div>
+            <div id="customDateResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. ทดสอบการกรองข้อมูลจริง</h3>
+            <button onclick="testRealDataFilter()">ทดสอบการกรองข้อมูลจริง</button>
+            <div id="realDataResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        function getDateRange(preset) {
+            const now = new Date();
+            let from, to;
+
+            switch (preset) {
+                case 'today':
+                    from = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    to = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    break;
+                case 'yesterday':
+                    const yesterday = new Date(now);
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    from = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+                    to = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+                    break;
+                case 'thisWeek':
+                    const startOfWeek = new Date(now);
+                    startOfWeek.setDate(now.getDate() - now.getDay());
+                    from = new Date(startOfWeek.getFullYear(), startOfWeek.getMonth(), startOfWeek.getDate());
+                    to = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    break;
+                case 'lastWeek':
+                    const lastWeekStart = new Date(now);
+                    lastWeekStart.setDate(now.getDate() - now.getDay() - 7);
+                    const lastWeekEnd = new Date(now);
+                    lastWeekEnd.setDate(now.getDate() - now.getDay() - 1);
+                    from = new Date(lastWeekStart.getFullYear(), lastWeekStart.getMonth(), lastWeekStart.getDate());
+                    to = new Date(lastWeekEnd.getFullYear(), lastWeekEnd.getMonth(), lastWeekEnd.getDate());
+                    break;
+                case 'thisMonth':
+                    from = new Date(now.getFullYear(), now.getMonth(), 1);
+                    to = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    break;
+                case 'lastMonth':
+                    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+                    from = new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1);
+                    to = new Date(lastMonthEnd.getFullYear(), lastMonthEnd.getMonth(), lastMonthEnd.getDate());
+                    break;
+                case 'last3Months':
+                    const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+                    from = new Date(threeMonthsAgo.getFullYear(), threeMonthsAgo.getMonth(), 1);
+                    to = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    break;
+            }
+
+            return { from, to };
+        }
+
+        async function testDateRange(preset) {
+            const resultDiv = document.getElementById('dateRangeResult');
+            resultDiv.innerHTML = 'กำลังทดสอบ...';
+            
+            try {
+                const { from, to } = getDateRange(preset);
+                const params = new URLSearchParams();
+                params.append('limit', '10');
+                params.append('from', from.toISOString());
+                params.append('to', to.toISOString());
+                
+                const url = `/api/admin/time-entries?${params.toString()}`;
+                console.log('Testing URL:', url);
+                
+                const response = await fetch(url);
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `✅ ทดสอบ ${preset} สำเร็จ!\n\nช่วงเวลา: ${from.toLocaleDateString('th-TH')} - ${to.toLocaleDateString('th-TH')}\nจำนวนรายการ: ${result.data.length}\n\nข้อมูลตัวอย่าง:\n${JSON.stringify(result.data[0], null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `❌ เกิดข้อผิดพลาด: ${result.error}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ เกิดข้อผิดพลาด: ${error.message}`;
+            }
+        }
+
+        async function testCustomDateRange() {
+            const resultDiv = document.getElementById('customDateResult');
+            const fromDate = document.getElementById('fromDate').value;
+            const toDate = document.getElementById('toDate').value;
+            
+            if (!fromDate || !toDate) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '❌ กรุณาเลือกวันที่เริ่มต้นและวันที่สิ้นสุด';
+                return;
+            }
+            
+            resultDiv.innerHTML = 'กำลังทดสอบ...';
+            
+            try {
+                const params = new URLSearchParams();
+                params.append('limit', '10');
+                params.append('from', new Date(fromDate).toISOString());
+                params.append('to', new Date(toDate).toISOString());
+                
+                const url = `/api/admin/time-entries?${params.toString()}`;
+                console.log('Testing custom date range URL:', url);
+                
+                const response = await fetch(url);
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `✅ ทดสอบช่วงเวลาที่กำหนดเองสำเร็จ!\n\nช่วงเวลา: ${fromDate} - ${toDate}\nจำนวนรายการ: ${result.data.length}\n\nข้อมูลตัวอย่าง:\n${JSON.stringify(result.data[0], null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `❌ เกิดข้อผิดพลาด: ${result.error}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ เกิดข้อผิดพลาด: ${error.message}`;
+            }
+        }
+
+        async function testRealDataFilter() {
+            const resultDiv = document.getElementById('realDataResult');
+            resultDiv.innerHTML = 'กำลังทดสอบการกรองข้อมูลจริง...';
+            
+            try {
+                // ทดสอบกรองข้อมูลเดือนกันยายน 2025
+                const params = new URLSearchParams();
+                params.append('limit', '20');
+                params.append('from', '2025-09-01T00:00:00.000Z');
+                params.append('to', '2025-09-30T23:59:59.999Z');
+                params.append('status', 'completed');
+                
+                const url = `/api/admin/time-entries?${params.toString()}`;
+                console.log('Testing real data filter URL:', url);
+                
+                const response = await fetch(url);
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `✅ ทดสอบการกรองข้อมูลจริงสำเร็จ!\n\nช่วงเวลา: กันยายน 2025\nสถานะ: เสร็จสิ้น\nจำนวนรายการ: ${result.data.length}\n\nข้อมูลตัวอย่าง:\n${JSON.stringify(result.data.slice(0, 2), null, 2)}`;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `❌ เกิดข้อผิดพลาด: ${result.error}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `❌ เกิดข้อผิดพลาด: ${error.message}`;
+            }
+        }
+
+        // ตั้งค่าวันที่เริ่มต้นและสิ้นสุดเป็นเดือนกันยายน 2025
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('fromDate').value = '2025-09-01';
+            document.getElementById('toDate').value = '2025-09-30';
+        });
+    </script>
+</body>
+</html>

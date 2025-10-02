@@ -1,0 +1,6 @@
+<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+  <rect width="300" height="300" fill="#f3f4f6"/>
+  <circle cx="150" cy="120" r="40" fill="#d1d5db"/>
+  <path d="M80 200 Q150 160 220 200 L220 250 L80 250 Z" fill="#d1d5db"/>
+  <text x="150" y="280" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#6b7280">ไม่มีรูปภาพ</text>
+</svg>

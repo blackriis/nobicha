@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Employee Reports</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #fafafa;
+        }
+        .btn {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #007bff;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background-color: #f8d7da;
+        }
+        .success {
+            border-left-color: #28a745;
+            background-color: #d4edda;
+        }
+        .auth-status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        .auth-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .auth-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Debug Employee Reports API</h1>
+        
+        <div id="auth-status" class="auth-status" style="display:none;"></div>
+        
+        <div class="section">
+            <h3>1. Authentication</h3>
+            <input type="email" id="email" placeholder="Email" value="manager.silom@test.com">
+            <input type="password" id="password" placeholder="Password" value="Manager123!">
+            <button class="btn" onclick="login()">Login</button>
+            <button class="btn" onclick="checkAuth()">ตรวจสอบสถานะ</button>
+        </div>
+
+        <div class="section">
+            <h3>2. API Tests</h3>
+            <button class="btn" onclick="testEmployeeAPI()">ทดสอบ Employee API</button>
+            <button class="btn" onclick="testAllAPIs()">ทดสอบ API ทั้งหมด</button>
+            <button class="btn" onclick="testWithDifferentRanges()">ทดสอบช่วงเวลาต่างๆ</button>
+            <div id="api-result" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="section">
+            <h3>3. Direct Supabase Test</h3>
+            <button class="btn" onclick="testSupabaseDirectly()">ทดสอบ Supabase โดยตรง</button>
+            <div id="supabase-result" class="result" style="display:none;"></div>
+        </div>
+
+        <div class="section">
+            <h3>4. Network Analysis</h3>
+            <button class="btn" onclick="analyzeNetwork()">วิเคราะห์ Network</button>
+            <div id="network-result" class="result" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Initialize Supabase client
+        const supabaseUrl = 'https://nyhwnafkybuxneqiaffq.supabase.co';
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55aHduYWZreWJ1eG5lcWlhZmZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcyMjM1NjksImV4cCI6MjA3Mjc5OTU2OX0.sgFadGCoquAO9NqZ8bGxBYOFnPGBXkE_Xbo4A_iuznE';
+        const supabase = supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+        let currentUser = null;
+
+        function showAuthStatus(message, isSuccess) {
+            const statusDiv = document.getElementById('auth-status');
+            statusDiv.style.display = 'block';
+            statusDiv.className = `auth-status ${isSuccess ? 'auth-success' : 'auth-error'}`;
+            statusDiv.textContent = message;
+        }
+
+        function showResult(elementId, message, isSuccess = null) {
+            const resultDiv = document.getElementById(elementId);
+            resultDiv.style.display = 'block';
+            resultDiv.className = `result ${isSuccess === true ? 'success' : isSuccess === false ? 'error' : ''}`;
+            resultDiv.textContent = message;
+        }
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+                
+                if (error) {
+                    showAuthStatus(`Login Error: ${error.message}`, false);
+                } else {
+                    currentUser = data.user;
+                    showAuthStatus(`✅ Login สำเร็จ! User: ${data.user.email}`, true);
+                }
+            } catch (error) {
+                showAuthStatus(`Login Error: ${error.message}`, false);
+            }
+        }
+
+        async function checkAuth() {
+            try {
+                const { data: { user }, error } = await supabase.auth.getUser();
+                if (error) {
+                    showAuthStatus(`Auth Check Error: ${error.message}`, false);
+                } else if (user) {
+                    currentUser = user;
+                    showAuthStatus(`✅ ผู้ใช้ที่ Login: ${user.email}`, true);
+                } else {
+                    currentUser = null;
+                    showAuthStatus('❌ ไม่มีผู้ใช้ Login อยู่', false);
+                }
+            } catch (error) {
+                showAuthStatus(`Auth Check Error: ${error.message}`, false);
+            }
+        }
+
+        async function testEmployeeAPI() {
+            if (!currentUser) {
+                showResult('api-result', '❌ กรุณา Login ก่อน', false);
+                return;
+            }
+
+            try {
+                showResult('api-result', '🔄 กำลังทดสอบ Employee API...', null);
+                
+                const response = await fetch('/api/admin/reports/employees?dateRange=month', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+                
+                const result = await response.json();
+                
+                const message = `Employee API Response (${response.status}):
+Status: ${response.ok ? '✅ Success' : '❌ Error'}
+Headers: ${JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2)}
+
+Response Body:
+${JSON.stringify(result, null, 2)}`;
+                
+                showResult('api-result', message, response.ok);
+                
+            } catch (error) {
+                showResult('api-result', `❌ Fetch Error: ${error.message}`, false);
+            }
+        }
+
+        async function testAllAPIs() {
+            if (!currentUser) {
+                showResult('api-result', '❌ กรุณา Login ก่อน', false);
+                return;
+            }
+
+            const apis = [
+                { name: 'Summary', url: '/api/admin/reports/summary?dateRange=month' },
+                { name: 'Employees', url: '/api/admin/reports/employees?dateRange=month' },
+                { name: 'Branches', url: '/api/admin/reports/branches?dateRange=month' },
+                { name: 'Sales', url: '/api/admin/reports/sales?dateRange=month' },
+                { name: 'Materials', url: '/api/admin/reports/materials?dateRange=month' }
+            ];
+
+            let results = '🔄 Testing All APIs...\\n\\n';
+            showResult('api-result', results, null);
+
+            for (const api of apis) {
+                try {
+                    const response = await fetch(api.url, {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include'
+                    });
+                    
+                    const result = await response.json();
+                    
+                    results += `${api.name} API (${response.status}): ${response.ok ? '✅' : '❌'}\\n`;
+                    if (!response.ok) {
+                        results += `  Error: ${result.error || 'Unknown error'}\\n`;
+                    } else {
+                        results += `  Data: ${JSON.stringify(result.data || result).substring(0, 100)}...\\n`;
+                    }
+                    results += '\\n';
+                    
+                    showResult('api-result', results, null);
+                    
+                } catch (error) {
+                    results += `${api.name} API: ❌ Fetch Error: ${error.message}\\n\\n`;
+                    showResult('api-result', results, null);
+                }
+            }
+        }
+
+        async function testWithDifferentRanges() {
+            if (!currentUser) {
+                showResult('api-result', '❌ กรุณา Login ก่อน', false);
+                return;
+            }
+
+            const ranges = ['today', 'week', 'month', 'all'];
+            let results = '🔄 Testing Different Date Ranges...\\n\\n';
+            showResult('api-result', results, null);
+
+            for (const range of ranges) {
+                try {
+                    const response = await fetch(`/api/admin/reports/employees?dateRange=${range}`, {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include'
+                    });
+                    
+                    const result = await response.json();
+                    
+                    results += `Range "${range}" (${response.status}): ${response.ok ? '✅' : '❌'}\\n`;
+                    if (response.ok && result.data) {
+                        results += `  Employees: ${result.data.employees?.length || 0}\\n`;
+                        results += `  Summary: ${JSON.stringify(result.data.summary)}\\n`;
+                    } else {
+                        results += `  Error: ${result.error || 'Unknown error'}\\n`;
+                    }
+                    results += '\\n';
+                    
+                    showResult('api-result', results, null);
+                    
+                } catch (error) {
+                    results += `Range "${range}": ❌ Error: ${error.message}\\n\\n`;
+                    showResult('api-result', results, null);
+                }
+            }
+        }
+
+        async function testSupabaseDirectly() {
+            try {
+                showResult('supabase-result', '🔄 กำลังทดสอบ Supabase โดยตรง...', null);
+                
+                // Test time_entries query
+                const { data: timeEntries, error: timeError } = await supabase
+                    .from('time_entries')
+                    .select(`
+                        id,
+                        user_id,
+                        total_hours,
+                        check_in_time,
+                        check_out_time,
+                        users!inner(full_name, employee_id),
+                        branches!inner(name)
+                    `)
+                    .limit(10);
+                
+                let message = `Supabase Direct Query Results:\\n\\n`;
+                
+                if (timeError) {
+                    message += `❌ Error: ${timeError.message}\\n`;
+                    message += `Details: ${JSON.stringify(timeError, null, 2)}`;
+                    showResult('supabase-result', message, false);
+                } else {
+                    message += `✅ Success!\\n`;
+                    message += `Count: ${timeEntries.length}\\n\\n`;
+                    message += `Sample Data:\\n${JSON.stringify(timeEntries.slice(0, 3), null, 2)}`;
+                    showResult('supabase-result', message, true);
+                }
+                
+            } catch (error) {
+                showResult('supabase-result', `❌ Supabase Error: ${error.message}`, false);
+            }
+        }
+
+        async function analyzeNetwork() {
+            const message = `Network Analysis:\\n\\n` +
+                `Current URL: ${window.location.href}\\n` +
+                `User Agent: ${navigator.userAgent}\\n` +
+                `Online: ${navigator.onLine}\\n` +
+                `Cookies Enabled: ${navigator.cookieEnabled}\\n` +
+                `Local Storage Available: ${typeof(Storage) !== "undefined"}\\n\\n` +
+                `Supabase Config:\\n` +
+                `URL: ${supabaseUrl}\\n` +
+                `Key: ${supabaseAnonKey.substring(0, 50)}...\\n\\n` +
+                `Current User: ${currentUser ? currentUser.email : 'None'}\\n` +
+                `Timestamp: ${new Date().toISOString()}`;
+                
+            showResult('network-result', message, null);
+        }
+
+        // Check auth on page load
+        window.addEventListener('load', checkAuth);
+    </script>
+</body>
+</html>

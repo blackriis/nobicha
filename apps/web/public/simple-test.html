@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple API Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .btn {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #007bff;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background-color: #f8d7da;
+        }
+        .success {
+            border-left-color: #28a745;
+            background-color: #d4edda;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Simple API Test</h1>
+        <p>ทดสอบ Employee Reports API โดยไม่ใช้ external libraries</p>
+        
+        <button class="btn" onclick="testEmployeeAPI()">ทดสอบ Employee API</button>
+        <button class="btn" onclick="testAllRanges()">ทดสอบทุกช่วงเวลา</button>
+        <button class="btn" onclick="checkAuthStatus()">ตรวจสอบ Auth</button>
+        
+        <div id="result" class="result" style="display:none;"></div>
+    </div>
+
+    <script>
+        function showResult(message, isSuccess = null) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = `result ${isSuccess === true ? 'success' : isSuccess === false ? 'error' : ''}`;
+            resultDiv.textContent = message;
+        }
+
+        async function testEmployeeAPI() {
+            try {
+                showResult('🔄 กำลังทดสอบ Employee API...', null);
+                
+                const response = await fetch('/api/admin/reports/employees?dateRange=month', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+                
+                const result = await response.json();
+                
+                let message = `Employee API Response (${response.status}):\\n`;
+                message += `Status: ${response.ok ? '✅ Success' : '❌ Error'}\\n\\n`;
+                
+                if (response.ok && result.data) {
+                    message += `📊 Summary:\\n`;
+                    message += `- Total Employees: ${result.data.summary?.totalEmployees || 0}\\n`;
+                    message += `- Total Hours: ${result.data.summary?.totalHours || 0}\\n`;
+                    message += `- Active Employees: ${result.data.summary?.activeEmployees || 0}\\n`;
+                    message += `- Average Hours: ${result.data.summary?.averageHoursPerEmployee || 0}\\n\\n`;
+                    
+                    message += `👥 Employees (${result.data.employees?.length || 0}):\\n`;
+                    if (result.data.employees && result.data.employees.length > 0) {
+                        result.data.employees.slice(0, 3).forEach((emp, index) => {
+                            message += `${index + 1}. ${emp.fullName} (${emp.employeeId}) - ${emp.totalHours}h\\n`;
+                        });
+                    }
+                    
+                    showResult(message, true);
+                } else {
+                    message += `❌ Error: ${result.error || 'Unknown error'}\\n`;
+                    message += `Full Response: ${JSON.stringify(result, null, 2)}`;
+                    showResult(message, false);
+                }
+                
+            } catch (error) {
+                showResult(`❌ Fetch Error: ${error.message}`, false);
+            }
+        }
+
+        async function testAllRanges() {
+            const ranges = ['today', 'week', 'month', 'all'];
+            let message = '🔄 Testing All Date Ranges...\\n\\n';
+            showResult(message, null);
+
+            for (const range of ranges) {
+                try {
+                    const response = await fetch(`/api/admin/reports/employees?dateRange=${range}`, {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include'
+                    });
+                    
+                    const result = await response.json();
+                    
+                    message += `📅 ${range.toUpperCase()} (${response.status}): `;
+                    if (response.ok && result.data) {
+                        message += `✅ ${result.data.employees?.length || 0} employees\\n`;
+                    } else {
+                        message += `❌ ${result.error || 'Error'}\\n`;
+                    }
+                    
+                    showResult(message, null);
+                    
+                } catch (error) {
+                    message += `📅 ${range.toUpperCase()}: ❌ ${error.message}\\n`;
+                    showResult(message, null);
+                }
+            }
+        }
+
+        async function checkAuthStatus() {
+            try {
+                showResult('🔄 ตรวจสอบสถานะ Authentication...', null);
+                
+                // Test a simple API that requires auth
+                const response = await fetch('/api/user/profile', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include'
+                });
+                
+                const result = await response.json();
+                
+                let message = `Auth Status Check (${response.status}):\\n`;
+                
+                if (response.ok && result.user) {
+                    message += `✅ Authenticated\\n`;
+                    message += `User ID: ${result.user.id}\\n`;
+                    message += `Email: ${result.user.email}\\n`;
+                    message += `Role: ${result.user.role}\\n`;
+                    message += `Name: ${result.user.full_name}\\n`;
+                    showResult(message, true);
+                } else {
+                    message += `❌ Not Authenticated\\n`;
+                    message += `Error: ${result.error || 'Unknown error'}\\n`;
+                    message += `\\n💡 Please login first at: /login/admin`;
+                    showResult(message, false);
+                }
+                
+            } catch (error) {
+                showResult(`❌ Auth Check Error: ${error.message}`, false);
+            }
+        }
+
+        // Auto-check auth on page load
+        window.addEventListener('load', () => {
+            setTimeout(checkAuthStatus, 1000);
+        });
+    </script>
+</body>
+</html>
