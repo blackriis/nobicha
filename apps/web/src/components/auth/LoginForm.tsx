@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { ModeToggle } from '@/components/ui/mode-toggle'
 import { useAuth } from './AuthProvider'
 import { getRedirectUrl, type UserRole } from '@/lib/auth'
 
@@ -57,7 +58,12 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-background relative">
+      {/* Theme Toggle Button - Top Right */}
+      <div className="absolute top-4 right-4">
+        <ModeToggle />
+      </div>
+      
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold text-center">
@@ -100,7 +106,7 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
             </div>
 
             {error && (
-              <div className="text-red-500 text-sm text-center bg-red-50 p-2 rounded">
+              <div className="text-red-500 dark:text-red-400 text-sm text-center bg-red-50 dark:bg-red-950/50 p-2 rounded">
                 {error}
               </div>
             )}
