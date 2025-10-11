@@ -47,6 +47,26 @@ export const designTokens = {
       border: 'border-blue-200',
       borderDark: 'border-blue-500'
     },
+    purple: {
+      50: 'bg-purple-50',
+      100: 'bg-purple-100',
+      500: 'bg-purple-500',
+      600: 'bg-purple-600',
+      text: 'text-purple-600',
+      textLight: 'text-purple-500',
+      border: 'border-purple-200',
+      borderDark: 'border-purple-500'
+    },
+    indigo: {
+      50: 'bg-indigo-50',
+      100: 'bg-indigo-100',
+      500: 'bg-indigo-500',
+      600: 'bg-indigo-600',
+      text: 'text-indigo-600',
+      textLight: 'text-indigo-500',
+      border: 'border-indigo-200',
+      borderDark: 'border-indigo-500'
+    },
     // Neutral Colors
     gray: {
       50: 'bg-gray-50',
@@ -85,15 +105,7 @@ export const designTokens = {
     24: '6rem'    // 96px
   },
 
-  // Shadow System
-  shadows: {
-    none: 'shadow-none',
-    sm: 'shadow-sm',     // Subtle elements
-    default: 'shadow-md', // Cards, buttons
-    lg: 'shadow-lg',     // Modals, dropdowns
-    xl: 'shadow-xl'      // Major containers
-  },
-
+  
   // Border Radius System
   borderRadius: {
     none: 'rounded-none',
@@ -146,7 +158,6 @@ export const designTokens = {
         default: 'p-6', // 24px
         lg: 'p-8'     // 32px
       },
-      shadow: 'shadow-md',
       border: 'border border-gray-200',
       borderRadius: 'rounded-lg'
     },
