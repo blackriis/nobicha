@@ -12,6 +12,7 @@ const cardVariants = cva(
         default: "",
         outline: "border-2",
         ghost: "border-0 shadow-none",
+        elevated: "shadow-lg border-0 hover:shadow-xl transition-shadow",
       },
     },
     defaultVariants: {

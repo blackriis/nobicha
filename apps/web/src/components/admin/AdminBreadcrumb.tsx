@@ -1,5 +1,6 @@
 'use client'
 
+import { Fragment } from 'react'
 import Link from 'next/link'
 import {
   Breadcrumb,
@@ -22,7 +23,7 @@ export function AdminBreadcrumb() {
     <Breadcrumb className="mb-6">
       <BreadcrumbList>
         {breadcrumbs.map((item, index) => (
-          <div key={index} className="flex items-center">
+          <Fragment key={index}>
             <BreadcrumbItem>
               {item.isCurrentPage || !item.href ? (
                 <BreadcrumbPage>{item.label}</BreadcrumbPage>
@@ -33,7 +34,7 @@ export function AdminBreadcrumb() {
               )}
             </BreadcrumbItem>
             {index < breadcrumbs.length - 1 && <BreadcrumbSeparator />}
-          </div>
+          </Fragment>
         ))}
       </BreadcrumbList>
     </Breadcrumb>

@@ -21,9 +21,14 @@
     "bmad:validate": "bmad-method validate"
   },
   "dependencies": {
+    "@radix-ui/react-popover": "^1.1.15",
+    "@radix-ui/react-scroll-area": "^1.2.10",
     "@supabase/supabase-js": "^2.57.2",
+    "date-fns": "^4.1.0",
     "dotenv": "^17.2.2",
-    "next": "15.5.2"
+    "next": "15.5.2",
+    "react-day-picker": "^9.11.1",
+    "recharts": "^3.2.1"
   },
   "devDependencies": {
     "shadcn": "^3.3.0",

@@ -138,6 +138,7 @@ export interface MaterialReport {
     totalCost: number
     usageCount: number
     materials: string[]
+    materialIds: string[]
     employees: string[]
     averageCostPerUsage: number
   }>

@@ -18,8 +18,8 @@ const mockSupabase = {
   })),
 };
 
-vi.mock('@supabase/auth-helpers-nextjs', () => ({
-  createServerComponentClient: vi.fn(() => mockSupabase),
+vi.mock('@/lib/supabase-server', () => ({
+  createClient: vi.fn(() => mockSupabase),
 }));
 
 vi.mock('next/headers', () => ({

@@ -54,7 +54,7 @@ export function MaterialUsageTable({ materials, isLoading, selectedBranchId }: M
   // Client-side branch filtering
   const branchFilteredMaterials = selectedBranchId
     ? materials.filter(material =>
-        material.branches.includes(selectedBranchId)
+        material.branches.includes(selectedBranchId) || material.branches.length === 0
       )
     : materials
 

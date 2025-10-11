@@ -1,17 +1,17 @@
 import { NextRequest } from 'next/server';
 import { GET } from '@/app/api/employee/time-entries/[id]/detail/route';
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/lib/supabase-server';
 import { calculateDistance } from '@/lib/utils/gps.utils';
 import { vi } from 'vitest';
 
 // Mock Supabase
-vi.mock('@supabase/auth-helpers-nextjs');
+vi.mock('@/lib/supabase-server');
 vi.mock('next/headers', () => ({
   cookies: vi.fn(),
 }));
 vi.mock('@/lib/utils/gps.utils');
 
-const mockCreateServerComponentClient = vi.mocked(createServerComponentClient);
+const mockCreateClient = vi.mocked(createClient);
 const mockCalculateDistance = vi.mocked(calculateDistance);
 
 describe('Time Entry Detail API GPS Functionality', () => {
@@ -30,7 +30,7 @@ describe('Time Entry Detail API GPS Functionality', () => {
       single: vi.fn(),
     };
 
-    mockCreateServerComponentClient.mockReturnValue(mockSupabase);
+    mockCreateClient.mockReturnValue(mockSupabase);
   });
 
   describe('GPS Coordinates Processing', () => {

@@ -217,7 +217,7 @@ export async function GET(request: NextRequest) {
       material.totalQuantity += usage.quantityUsed
       material.totalCost += usage.totalCost
       material.usageCount += 1
-      material.branches.add(usage.branch.name)
+      material.branches.add(usage.branch.id)
       material.employees.add(usage.employee.name)
     })
 
@@ -242,6 +242,7 @@ export async function GET(request: NextRequest) {
           totalCost: 0,
           usageCount: 0,
           materials: new Set(),
+          materialIds: new Set(),
           employees: new Set()
         })
       }
@@ -249,6 +250,7 @@ export async function GET(request: NextRequest) {
       branch.totalCost += usage.totalCost
       branch.usageCount += 1
       branch.materials.add(usage.materialName)
+      branch.materialIds.add(usage.materialId)
       branch.employees.add(usage.employee.name)
     })
 
@@ -257,6 +259,7 @@ export async function GET(request: NextRequest) {
       .map(branch => ({
         ...branch,
         materials: Array.from(branch.materials),
+        materialIds: Array.from(branch.materialIds),
         employees: Array.from(branch.employees),
         averageCostPerUsage: branch.usageCount > 0 ? Math.round(branch.totalCost / branch.usageCount * 100) / 100 : 0
       }))
