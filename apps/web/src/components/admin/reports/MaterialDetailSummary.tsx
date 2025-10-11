@@ -1,173 +1,231 @@
 'use client'
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import {
-  Package,
-  DollarSign,
-  Building2,
-  Users,
-  TrendingUp,
-  Hash
+ Package,
+ DollarSign,
+ Building2,
+ Users,
+ TrendingUp,
+ Hash
 } from 'lucide-react'
 import { adminReportsService } from '@/lib/services/admin-reports.service'
+import { designTokens } from '@/lib/design-tokens'
+import { cn } from '@/lib/utils'
 
 interface MaterialDetailSummaryProps {
-  summary: {
-    totalCost: number
-    totalUsageCount: number
-    uniqueMaterials: number
-    uniqueBranches: number
-    uniqueEmployees: number
-    averageCostPerUsage: number
-    topMaterial: string | null
-    topMaterialCost: number
-  } | null
-  isLoading: boolean
+ summary: {
+  totalCost: number
+  totalUsageCount: number
+  uniqueMaterials: number
+  uniqueBranches: number
+  uniqueEmployees: number
+  averageCostPerUsage: number
+  topMaterial: string | null
+  topMaterialCost: number
+ } | null
+ isLoading: boolean
 }
 
 export function MaterialDetailSummary({ summary, isLoading }: MaterialDetailSummaryProps) {
-  if (isLoading) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {Array.from({ length: 6 }).map((_, index) => (
-          <Card key={index} className="bg-background text-foreground border-border transition-colors duration-300 hover:bg-muted hover:shadow-md">
-            <CardHeader className="pb-3">
-              <div className="animate-pulse">
-                <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
-                <div className="h-6 bg-muted rounded w-1/2"></div>
-              </div>
-            </CardHeader>
-            <CardContent className="animate-pulse">
-              <div className="h-8 bg-muted rounded"></div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    )
-  }
-
-  if (!summary) {
-    return (
-      <Card className="bg-background text-foreground border-border border-dashed border-2 transition-colors duration-300 hover:bg-muted hover:shadow-md">
-        <CardContent className="p-8 text-center">
-          <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <p className="text-muted-foreground mb-2">ไม่มีข้อมูลวัตถุดิบในช่วงเวลาที่เลือก</p>
-          <details className="text-xs text-muted-foreground">
-            <summary className="cursor-pointer mb-2">ข้อมูล Debug</summary>
-            <p>ตรวจสอบ Browser Console และ Network Tab สำหรับข้อมูลเพิ่มเติม</p>
-            <p>Summary data: {JSON.stringify(summary)}</p>
-            <p>Loading state: {isLoading ? 'true' : 'false'}</p>
-          </details>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  const summaryCards = [
-    {
-      title: 'ต้นทุนรวม',
-      value: adminReportsService.formatCurrency(summary.totalCost),
-      icon: DollarSign,
-      description: 'ต้นทุนวัตถุดิบทั้งหมด'
-    },
-    {
-      title: 'การใช้งานทั้งหมด',
-      value: summary.totalUsageCount.toLocaleString(),
-      suffix: 'ครั้ง',
-      icon: Hash,
-      description: 'จำนวนครั้งที่ใช้วัตถุดิบ'
-    },
-    {
-      title: 'วัตถุดิบที่ใช้',
-      value: summary.uniqueMaterials.toString(),
-      suffix: 'รายการ',
-      icon: Package,
-      description: 'จำนวนชนิดวัตถุดิบ'
-    },
-    {
-      title: 'สาขาที่เกี่ยวข้อง',
-      value: summary.uniqueBranches.toString(),
-      suffix: 'สาขา',
-      icon: Building2,
-      description: 'จำนวนสาขาที่ใช้วัตถุดิบ'
-    },
-    {
-      title: 'พนักงานที่เกี่ยวข้อง',
-      value: summary.uniqueEmployees.toString(),
-      suffix: 'คน',
-      icon: Users,
-      description: 'จำนวนพนักงานที่ใช้วัตถุดิบ'
-    },
-    {
-      title: 'ต้นทุนเฉลี่ยต่อครั้ง',
-      value: adminReportsService.formatCurrency(summary.averageCostPerUsage),
-      icon: TrendingUp,
-      description: 'ต้นทุนเฉลี่ยต่อการใช้งาน'
-    }
-  ]
-
+ if (isLoading) {
   return (
-    <div className="space-y-6">
-      {/* Summary Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        {summaryCards.map((card, index) => {
-          const IconComponent = card.icon
-
-          return (
-            <Card key={index} className="bg-background text-foreground border-border transition-colors duration-300 hover:bg-muted hover:shadow-md hover:scale-[1.02]">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="p-3 rounded-xl bg-muted text-foreground/80 shadow-sm transition-colors duration-300">
-                    <IconComponent className="h-5 w-5 transition-colors duration-300" />
-                  </div>
-                </div>
-                <CardTitle className="text-sm font-medium text-muted-foreground mt-3 transition-colors duration-300">
-                  {card.title}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="flex items-baseline gap-2 mb-2">
-                  <span className="text-2xl lg:text-3xl font-bold text-foreground transition-colors duration-300">
-                    {card.value}
-                  </span>
-                  {card.suffix && (
-                    <span className="text-sm text-muted-foreground font-medium transition-colors duration-300">
-                      {card.suffix}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed transition-colors duration-300">
-                  {card.description}
-                </p>
-              </CardContent>
-            </Card>
-          )
-        })}
+   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+    {Array.from({ length: 6 }).map((_, index) => (
+     <div key={index} className={cn(
+      "relative bg-gradient-to-br from-background via-background to-muted/20 backdrop-blur-sm",
+      "border border-border/50 rounded-2xl p-6 overflow-hidden",
+      "hover:shadow-lg hover:shadow-primary/5 hover:border-primary/20",
+      "transition-all duration-300 ease-out",
+      designTokens.animations.transition.default
+     )}>
+      <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-primary/10 to-transparent rounded-full -mr-10 -mt-10"></div>
+      <div className="relative">
+       <div className="animate-pulse">
+        <div className="h-3 bg-muted/50 rounded-lg w-2/3 mb-3"></div>
+        <div className="h-8 bg-muted/50 rounded-xl w-1/2 mb-2"></div>
+        <div className="h-2 bg-muted/30 rounded-lg w-full"></div>
+       </div>
       </div>
-
-      {/* Top Material Highlight */}
-      {summary.topMaterial && (
-        <Card className="bg-gradient-to-r from-muted/50 to-accent/10 bg-background text-foreground border-border transition-colors duration-300 hover:bg-muted hover:shadow-md">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-muted text-foreground/80 rounded-full transition-colors duration-300">
-                <Package className="h-6 w-6 transition-colors duration-300" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-foreground transition-colors duration-300">วัตถุดิบที่ใช้มากที่สุด</h3>
-                <p className="text-sm text-muted-foreground mt-1 transition-colors duration-300">
-                  <span className="font-medium">{summary.topMaterial}</span> •
-                  ต้นทุน {adminReportsService.formatCurrency(summary.topMaterialCost)}
-                </p>
-              </div>
-              <Badge variant="secondary" className="bg-accent/10 text-accent-foreground border-border">
-                สูงสุด
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+     </div>
+    ))}
+   </div>
   )
+ }
+
+ if (!summary) {
+  return (
+   <div className={cn(
+    "relative bg-gradient-to-br from-background via-background to-muted/30 backdrop-blur-sm",
+    "border-2 border-dashed border-border/50 rounded-3xl p-12 text-center",
+    "hover:border-border/80 hover:bg-muted/10",
+    "transition-all duration-500 ease-out",
+    designTokens.animations.transition.default
+   )}>
+    <div className="max-w-md mx-auto">
+     <div className={cn(
+      "w-20 h-20 bg-gradient-to-br from-muted/50 to-muted/20 rounded-2xl",
+      "flex items-center justify-center mx-auto mb-6",
+      designTokens.animations.transition.default
+     )}>
+      <Package className="h-10 w-10 text-muted-foreground/60" />
+     </div>
+     <h3 className="text-lg font-medium text-foreground mb-3">ไม่มีข้อมูลวัตถุดิบ</h3>
+     <p className="text-muted-foreground mb-6">ไม่พบข้อมูลการใช้วัตถุดิบในช่วงเวลาที่เลือก</p>
+     <details className="text-xs text-muted-foreground/60 bg-muted/20 rounded-xl p-4 max-w-sm mx-auto">
+      <summary className="cursor-pointer font-medium mb-2 hover:text-foreground transition-colors">ข้อมูล Debug</summary>
+      <div className="text-left space-y-1">
+       <p>• ตรวจสอบ Browser Console</p>
+       <p>• ตรวจสอบ Network Tab</p>
+       <p>• Summary: {JSON.stringify(summary)}</p>
+       <p>• Loading: {isLoading ? 'true' : 'false'}</p>
+      </div>
+     </details>
+    </div>
+   </div>
+  )
+ }
+
+ const summaryCards = [
+  {
+   title: 'ต้นทุนรวม',
+   value: adminReportsService.formatCurrency(summary.totalCost),
+   icon: DollarSign,
+   description: 'ต้นทุนวัตถุดิบทั้งหมด'
+  },
+  {
+   title: 'การใช้งานทั้งหมด',
+   value: summary.totalUsageCount.toLocaleString(),
+   suffix: 'ครั้ง',
+   icon: Hash,
+   description: 'จำนวนครั้งที่ใช้วัตถุดิบ'
+  },
+  {
+   title: 'วัตถุดิบที่ใช้',
+   value: summary.uniqueMaterials.toString(),
+   suffix: 'รายการ',
+   icon: Package,
+   description: 'จำนวนชนิดวัตถุดิบ'
+  },
+  {
+   title: 'สาขาที่เกี่ยวข้อง',
+   value: summary.uniqueBranches.toString(),
+   suffix: 'สาขา',
+   icon: Building2,
+   description: 'จำนวนสาขาที่ใช้วัตถุดิบ'
+  },
+  {
+   title: 'พนักงานที่เกี่ยวข้อง',
+   value: summary.uniqueEmployees.toString(),
+   suffix: 'คน',
+   icon: Users,
+   description: 'จำนวนพนักงานที่ใช้วัตถุดิบ'
+  },
+  {
+   title: 'ต้นทุนเฉลี่ยต่อครั้ง',
+   value: adminReportsService.formatCurrency(summary.averageCostPerUsage),
+   icon: TrendingUp,
+   description: 'ต้นทุนเฉลี่ยต่อการใช้งาน'
+  }
+ ]
+
+ return (
+  <div className="space-y-8">
+   {/* Summary Cards Grid */}
+   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+    {summaryCards.map((card, index) => {
+     const IconComponent = card.icon
+
+     return (
+      <div key={index} className={cn(
+       "group relative bg-gradient-to-br from-background via-background to-muted/10 backdrop-blur-sm",
+       "border border-border/30 rounded-2xl p-6 overflow-hidden",
+       "hover:shadow-xl hover:shadow-primary/5 hover:border-primary/30 hover:-translate-y-1",
+       "transition-all duration-300 ease-out",
+       designTokens.animations.transition.default
+      )}>
+       {/* Decorative gradient */}
+       <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-primary/8 to-transparent rounded-full -mr-12 -mt-12 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+       
+       {/* Icon background */}
+       <div className={cn(
+        "w-12 h-12 bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl",
+        "flex items-center justify-center mb-4",
+        "group-hover:scale-110 group-hover:from-primary/15 group-hover:to-primary/8",
+        "transition-all duration-300 ease-out"
+       )}>
+        <IconComponent className={cn("h-6 w-6 text-primary", designTokens.animations.transition.default)} />
+       </div>
+       
+       {/* Title */}
+       <h3 className={cn(
+        "text-sm font-medium text-muted-foreground mb-3",
+        "group-hover:text-foreground transition-colors duration-300"
+       )}>
+        {card.title}
+       </h3>
+       
+       {/* Value and suffix */}
+       <div className="flex items-baseline gap-2 mb-3">
+        <span className={cn(
+         "text-2xl xl:text-3xl font-bold text-foreground",
+         "group-hover:scale-105 transition-transform duration-300"
+        )}>
+         {card.value}
+        </span>
+        {card.suffix && (
+         <span className="text-sm text-muted-foreground/70 font-medium">
+          {card.suffix}
+         </span>
+        )}
+       </div>
+       
+       {/* Description */}
+       <p className="text-xs text-muted-foreground/60 leading-relaxed">
+        {card.description}
+       </p>
+      </div>
+     )
+    })}
+   </div>
+
+   {/* Top Material Highlight */}
+   {summary.topMaterial && (
+    <div className={cn(
+     "relative bg-gradient-to-r from-primary/5 via-background to-accent/5 backdrop-blur-sm",
+     "border border-border/40 rounded-3xl p-8 overflow-hidden",
+     "hover:shadow-lg hover:shadow-primary/5 hover:border-primary/20",
+     "transition-all duration-500 ease-out"
+    )}>
+     <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-primary/10 to-transparent rounded-full -ml-16 -mt-16"></div>
+     <div className="absolute bottom-0 right-0 w-24 h-24 bg-gradient-to-tl from-accent/10 to-transparent rounded-full -mr-12 -mb-12"></div>
+     
+     <div className="relative">
+      <div className="flex items-center gap-6">
+       <div className={cn(
+        "w-16 h-16 bg-gradient-to-br from-primary/15 to-primary/5 rounded-2xl",
+        "flex items-center justify-center",
+        designTokens.animations.transition.default
+       )}>
+        <Package className="h-8 w-8 text-primary" />
+       </div>
+       
+       <div className="flex-1">
+        <div className="flex items-center gap-3 mb-2">
+         <h3 className="text-xl font-semibold text-foreground">วัตถุดิบที่ใช้มากที่สุด</h3>
+         <div className="px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium">
+          สูงสุด
+         </div>
+        </div>
+        <div className="flex items-center gap-4 text-sm">
+         <span className="font-medium text-foreground">{summary.topMaterial}</span>
+         <span className="text-muted-foreground/60">•</span>
+         <span className="text-muted-foreground">ต้นทุน {adminReportsService.formatCurrency(summary.topMaterialCost)}</span>
+        </div>
+       </div>
+      </div>
+     </div>
+    </div>
+   )}
+  </div>
+ )
 }
