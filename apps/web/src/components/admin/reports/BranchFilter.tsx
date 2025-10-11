@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Building2, Loader2 } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Building2, Loader2, MapPin } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface Branch {
   id: string
@@ -31,18 +33,18 @@ export function BranchFilter({ selectedBranchId, onBranchChange, isLoading }: Br
     try {
       setLoading(true)
       setError(null)
-      
+
       console.log('🔄 Fetching branches for filter...')
-      
+
       const response = await fetch('/api/admin/branches', {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         }
       })
-      
+
       console.log('📡 Branches API response:', response.status, response.statusText)
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         throw new Error(errorData.error || `HTTP ${response.status}`)
@@ -50,7 +52,7 @@ export function BranchFilter({ selectedBranchId, onBranchChange, isLoading }: Br
 
       const result = await response.json()
       console.log('✅ Branches fetched:', { count: result.branches?.length || 0 })
-      
+
       if (result.success && result.branches) {
         setBranches(result.branches)
       } else {
@@ -60,7 +62,7 @@ export function BranchFilter({ selectedBranchId, onBranchChange, isLoading }: Br
     } catch (err) {
       console.error('❌ Error fetching branches:', err)
       setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการดึงข้อมูลสาขา')
-      setBranches([]) // Fallback to empty array
+      setBranches([])
     } finally {
       setLoading(false)
     }
@@ -77,57 +79,88 @@ export function BranchFilter({ selectedBranchId, onBranchChange, isLoading }: Br
     return selectedBranchId || 'all'
   }
 
-  const getDisplayText = () => {
-    if (loading) return 'กำลังโหลด...'
-    if (error) return 'เกิดข้อผิดพลาด'
-    return 'เลือกสาขา'
+  const getSelectedBranchName = (): string => {
+    if (!selectedBranchId) return 'ทุกสาขา'
+    const branch = branches.find(b => b.id === selectedBranchId)
+    return branch?.name || 'สาขาที่เลือก'
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <Building2 className="h-4 w-4 text-muted-foreground" />
-      <Select 
-        value={getSelectedValue()} 
-        onValueChange={handleBranchChange}
-        disabled={loading || isLoading || !!error}
-      >
-        <SelectTrigger className="w-[200px]">
-          <SelectValue placeholder={getDisplayText()}>
-            {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            {selectedBranchId ? 
-              branches.find(b => b.id === selectedBranchId)?.name || 'สาขาที่เลือก' :
-              'ทุกสาขา'
-            }
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              <span>ทุกสาขา</span>
-            </div>
-          </SelectItem>
-          {branches.map((branch) => (
-            <SelectItem key={branch.id} value={branch.id}>
+    <div className="space-y-4">
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-primary/10 dark:bg-primary/20 rounded-lg">
+            <Building2 className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">สาขา</h2>
+            <p className="text-sm text-muted-foreground">
+              เลือกสาขาที่ต้องการดูรายงาน
+            </p>
+          </div>
+        </div>
+        <Badge variant="outline" className="gap-2">
+          <MapPin className="h-3.5 w-3.5" />
+          <span className="text-xs font-medium">{getSelectedBranchName()}</span>
+        </Badge>
+      </div>
+
+      {/* Filter Options */}
+      <div className="bg-card dark:bg-card border border-border rounded-lg p-4">
+        <Select
+          value={getSelectedValue()}
+          onValueChange={handleBranchChange}
+          disabled={loading || isLoading || !!error}
+        >
+          <SelectTrigger className={cn(
+            "w-full bg-background dark:bg-background",
+            error && "border-destructive"
+          )}>
+            <SelectValue>
               <div className="flex items-center gap-2">
-                <Building2 className="h-4 w-4" />
+                {loading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                {error ? (
+                  <span className="text-destructive">เกิดข้อผิดพลาด</span>
+                ) : (
+                  <span>{getSelectedBranchName()}</span>
+                )}
+              </div>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent className="bg-card dark:bg-card border-border">
+            <SelectItem value="all">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-muted-foreground" />
                 <div className="flex flex-col">
-                  <span className="font-medium">{branch.name}</span>
-                  <span className="text-xs text-muted-foreground truncate max-w-[150px]">
-                    {branch.address}
-                  </span>
+                  <span className="font-medium">ทุกสาขา</span>
+                  <span className="text-xs text-muted-foreground">แสดงข้อมูลทุกสาขา</span>
                 </div>
               </div>
             </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      
-      {error && (
-        <div className="text-xs text-red-500 max-w-[200px]">
-          {error}
-        </div>
-      )}
+            {branches.map((branch) => (
+              <SelectItem key={branch.id} value={branch.id}>
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <div className="flex flex-col">
+                    <span className="font-medium">{branch.name}</span>
+                    <span className="text-xs text-muted-foreground truncate max-w-[250px]">
+                      {branch.address}
+                    </span>
+                  </div>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {error && (
+          <p className="text-xs text-destructive mt-2 flex items-center gap-1">
+            <span>⚠️</span>
+            <span>{error}</span>
+          </p>
+        )}
+      </div>
     </div>
   )
 }

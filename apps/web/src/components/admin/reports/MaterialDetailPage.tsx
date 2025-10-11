@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { 
+import {
   ArrowLeft,
   RefreshCw,
   AlertCircle,
@@ -14,7 +14,8 @@ import {
   Building2,
   Users,
   DollarSign,
-  Activity
+  Activity,
+  X
 } from 'lucide-react'
 
 // Import components
@@ -23,10 +24,11 @@ import { BranchFilter } from './BranchFilter'
 import { MaterialDetailSummary } from './MaterialDetailSummary'
 import { MaterialBranchBreakdown } from './MaterialBranchBreakdown'
 import { MaterialUsageTable } from './MaterialUsageTable'
+import { MaterialTrendChart, type MonthlyTrendData } from './MaterialTrendChart'
 
 // Import service and types
-import { 
-  adminReportsService, 
+import {
+  adminReportsService,
   type DateRangeFilter,
   type MaterialReport
 } from '@/lib/services/admin-reports.service'
@@ -49,7 +51,12 @@ export function MaterialDetailPage() {
   }
   
   const getInitialBranchId = (): string | null => {
-    return searchParams.get('branchId')
+    const branchId = searchParams.get('branchId')
+    // Validate branchId - should be null, UUID format, or valid ID
+    if (!branchId || branchId === 'unknown' || branchId === 'null' || branchId === 'undefined') {
+      return null
+    }
+    return branchId
   }
   
   // State management
@@ -59,6 +66,11 @@ export function MaterialDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
   const [materialData, setMaterialData] = useState<MaterialReport | null>(null)
+
+  // Trend chart state
+  const [trendData, setTrendData] = useState<MonthlyTrendData[]>([])
+  const [trendPeriod, setTrendPeriod] = useState<'last3months' | 'last6months' | 'last12months'>('last3months')
+  const [isTrendLoading, setIsTrendLoading] = useState(false)
 
   // Fetch material reports data
   const fetchMaterialData = async (selectedRange: DateRangeFilter, branchId: string | null = null) => {
@@ -95,9 +107,43 @@ export function MaterialDetailPage() {
     }
   }
 
+  // Fetch trend data
+  const fetchTrendData = async (period: 'last3months' | 'last6months' | 'last12months', branchId: string | null = null) => {
+    setIsTrendLoading(true)
+    try {
+      const monthsMap = {
+        'last3months': 3,
+        'last6months': 6,
+        'last12months': 12
+      }
+      const months = monthsMap[period]
+
+      const result = await adminReportsService.getMaterialMonthlyTrend(months, branchId)
+
+      if (result.success && result.data) {
+        setTrendData(result.data)
+      } else {
+        console.error('Failed to fetch trend data:', result.error)
+        setTrendData([])
+      }
+    } catch (err) {
+      console.error('Trend data fetch error:', err)
+      setTrendData([])
+    } finally {
+      setIsTrendLoading(false)
+    }
+  }
+
+  // Handle trend period change
+  const handleTrendPeriodChange = (period: 'last3months' | 'last6months' | 'last12months') => {
+    setTrendPeriod(period)
+    fetchTrendData(period, selectedBranchId)
+  }
+
   // Initial data load
   useEffect(() => {
     fetchMaterialData(dateRange, selectedBranchId)
+    fetchTrendData(trendPeriod, selectedBranchId)
   }, [])
 
   // Handle date range change
@@ -120,14 +166,15 @@ export function MaterialDetailPage() {
   const handleBranchChange = (branchId: string | null) => {
     setSelectedBranchId(branchId)
     fetchMaterialData(dateRange, branchId)
-    
+    fetchTrendData(trendPeriod, branchId)
+
     // Update URL params
     const params = new URLSearchParams()
     params.set('dateRange', dateRange.type)
     if (dateRange.startDate) params.set('startDate', dateRange.startDate)
     if (dateRange.endDate) params.set('endDate', dateRange.endDate)
     if (branchId) params.set('branchId', branchId)
-    
+
     const newUrl = `/admin/reports/materials?${params.toString()}`
     window.history.replaceState({}, '', newUrl)
   }
@@ -135,6 +182,7 @@ export function MaterialDetailPage() {
   // Handle refresh
   const handleRefresh = () => {
     fetchMaterialData(dateRange, selectedBranchId)
+    fetchTrendData(trendPeriod, selectedBranchId)
   }
 
   // Handle back navigation
@@ -143,8 +191,14 @@ export function MaterialDetailPage() {
     params.set('dateRange', dateRange.type)
     if (dateRange.startDate) params.set('startDate', dateRange.startDate)
     if (dateRange.endDate) params.set('endDate', dateRange.endDate)
-    
+
     router.push(`/admin/reports?${params.toString()}`)
+  }
+
+  // Handle branch card click (toggle behavior)
+  const handleBranchCardClick = (branchId: string) => {
+    const newBranchId = selectedBranchId === branchId ? null : branchId
+    handleBranchChange(newBranchId)
   }
 
   const formatRefreshTime = (date: Date): string => {
@@ -156,15 +210,15 @@ export function MaterialDetailPage() {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
+    <div className="space-y-8 bg-background text-foreground transition-colors duration-300">
+      {/* Header Section */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
             size="sm"
             onClick={handleBackToReports}
-            className="gap-2"
+            className="gap-2 hover:bg-accent focus-visible:ring-ring transition-colors duration-300"
           >
             <ArrowLeft className="h-4 w-4" />
             กลับไปรายงานหลัก
@@ -179,7 +233,7 @@ export function MaterialDetailPage() {
         </div>
         
         <div className="flex items-center gap-3">
-          <Badge variant="outline" className="gap-1">
+          <Badge variant="outline" className="gap-1 hover:bg-accent focus-visible:ring-ring transition-colors duration-300">
             <Activity className="h-3 w-3" />
             อัพเดทล่าสุด: {formatRefreshTime(lastRefresh)}
           </Badge>
@@ -189,7 +243,7 @@ export function MaterialDetailPage() {
             size="sm" 
             onClick={handleRefresh}
             disabled={isLoading}
-            className="gap-2"
+            className="gap-2 hover:bg-accent focus-visible:ring-ring transition-colors duration-300"
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             รีเฟรช
@@ -201,16 +255,16 @@ export function MaterialDetailPage() {
 
       {/* Error Alert */}
       {error && (
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-destructive/20 bg-destructive/10 text-destructive transition-colors duration-300">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-red-700">
+            <div className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4" />
               <div className="flex-1">
                 <span className="text-sm font-medium">เกิดข้อผิดพลาด:</span>
                 <p className="text-sm">{error}</p>
                 <details className="mt-2">
                   <summary className="text-xs cursor-pointer">รายละเอียดเพิ่มเติม</summary>
-                  <pre className="text-xs mt-1 p-2 bg-red-100 rounded overflow-auto">
+                  <pre className="text-xs mt-1 p-2 bg-muted rounded overflow-auto text-muted-foreground">
                     {JSON.stringify({ dateRange, lastRefresh }, null, 2)}
                   </pre>
                 </details>
@@ -221,13 +275,13 @@ export function MaterialDetailPage() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center p-4 bg-gradient-to-r from-gray-50 to-blue-50/50 rounded-lg border border-gray-100">
+      <div className="space-y-6 bg-background text-foreground transition-colors duration-300">
         <ReportsDateFilter
           selectedRange={dateRange}
           onRangeChange={handleDateRangeChange}
           isLoading={isLoading}
         />
-        
+
         <BranchFilter
           selectedBranchId={selectedBranchId}
           onBranchChange={handleBranchChange}
@@ -235,11 +289,11 @@ export function MaterialDetailPage() {
         />
       </div>
 
-      {/* Summary Cards */}
-      <section>
+      {/* Summary Section */}
+      <section className="bg-background text-foreground transition-colors duration-300">
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg">
-            <Package className="h-5 w-5 text-white" />
+          <div className="p-2 bg-accent text-accent-foreground rounded-lg">
+            <Package className="h-5 w-5" />
           </div>
           <h2 className="text-xl font-semibold tracking-tight">
             สรุปข้อมูลวัตถุดิบ
@@ -251,27 +305,50 @@ export function MaterialDetailPage() {
         />
       </section>
 
+      {/* Trend Chart Section */}
+      <section className="bg-background text-foreground transition-colors duration-300">
+        <MaterialTrendChart
+          data={trendData}
+          isLoading={isTrendLoading}
+          selectedPeriod={trendPeriod}
+          onPeriodChange={handleTrendPeriodChange}
+        />
+      </section>
+
       {/* Branch Breakdown */}
-      <section>
+      <section className="bg-background text-foreground transition-colors duration-300">
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg">
-            <Building2 className="h-5 w-5 text-white" />
+          <div className="p-2 bg-accent text-accent-foreground rounded-lg">
+            <Building2 className="h-5 w-5" />
           </div>
           <h2 className="text-xl font-semibold tracking-tight">
             การใช้วัตถุดิบแยกตามสาขา
           </h2>
+          {selectedBranchId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleBranchChange(null)}
+              className="gap-2 text-blue-600 hover:bg-accent focus-visible:ring-ring transition-colors duration-300"
+            >
+              <X className="h-4 w-4" />
+              แสดงทุกสาขา
+            </Button>
+          )}
         </div>
         <MaterialBranchBreakdown
           branches={materialData?.branchBreakdown || []}
           isLoading={isLoading}
+          selectedBranchId={selectedBranchId}
+          onBranchClick={handleBranchCardClick}
         />
       </section>
 
       {/* Material Usage Table */}
-      <section>
+      <section className="bg-background text-foreground transition-colors duration-300">
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 bg-gradient-to-br from-green-500 to-green-600 rounded-lg">
-            <DollarSign className="h-5 w-5 text-white" />
+          <div className="p-2 bg-accent text-accent-foreground rounded-lg">
+            <DollarSign className="h-5 w-5" />
           </div>
           <h2 className="text-xl font-semibold tracking-tight">
             รายละเอียดการใช้วัตถุดิบ
@@ -280,11 +357,12 @@ export function MaterialDetailPage() {
         <MaterialUsageTable
           materials={materialData?.materialBreakdown || []}
           isLoading={isLoading}
+          selectedBranchId={selectedBranchId}
         />
       </section>
 
       {/* Footer Info */}
-      <div className="text-center text-sm text-muted-foreground pt-8 border-t">
+      <div className="text-center text-sm text-muted-foreground pt-8 border-t border-border bg-background transition-colors duration-300">
         <p>ข้อมูลรายงานอัพเดทแบบ Real-time • สร้างเมื่อ {formatRefreshTime(lastRefresh)}</p>
       </div>
     </div>

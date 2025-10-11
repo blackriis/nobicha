@@ -32,19 +32,20 @@ export function ReportsSummaryCards({
   
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {Array.from({ length: 4 }).map((_, index) => (
-          <Card key={index} className="border-0 shadow-sm">
+          <Card key={`skeleton-${index}`} className="border border-border bg-background shadow-sm rounded-lg transition-all dark:border-muted dark:bg-muted/30">
             <CardHeader className="pb-3">
-              <div className="animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+              <div className="animate-pulse space-y-3">
+                <div className="h-4 bg-muted rounded w-3/4 dark:bg-muted/50"></div>
+                <div className="h-8 bg-muted rounded w-1/2 dark:bg-muted/50"></div>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="animate-pulse">
-                <div className="h-3 bg-gray-200 rounded w-full mb-2"></div>
-                <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+              <div className="animate-pulse space-y-4">
+                <div className="h-3 bg-muted rounded w-full mb-2 dark:bg-muted/50"></div>
+                <div className="h-2 bg-muted rounded w-2/3 dark:bg-muted/50"></div>
+                <div className="h-8 bg-muted rounded w-full dark:bg-muted/50"></div>
               </div>
             </CardContent>
           </Card>
@@ -55,14 +56,19 @@ export function ReportsSummaryCards({
 
   if (!summary) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="border-0 shadow-sm">
-          <CardContent className="p-6 text-center">
-            <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">ไม่มีข้อมูลสรุป</p>
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="border border-border bg-background shadow-sm rounded-lg transition-all col-span-full dark:border-muted dark:bg-muted/30">
+        <CardContent className="p-12 text-center">
+          <div className="flex flex-col items-center space-y-4">
+            <div className="p-3 bg-muted rounded-lg dark:bg-muted/30">
+              <AlertCircle className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-foreground">ไม่มีข้อมูลสรุป</p>
+              <p className="text-xs text-muted-foreground mt-1">ลองรีเฟรชข้อมูลหรือตรวจสอบการเชื่อมต่อ</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     )
   }
 
@@ -82,8 +88,8 @@ export function ReportsSummaryCards({
       value: summary.employees.total.toLocaleString(),
       subtitle: `${summary.employees.checkedInToday} คนเช็คอินวันนี้`,
       icon: Users,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50 dark:bg-blue-950',
+      color: 'text-primary',
+      bgColor: 'bg-primary/10',
       progress: summary.employees.attendanceRate,
       progressLabel: `${summary.employees.attendanceRate}% เข้างาน`,
       trend: summary.employees.checkedInToday > 0 ? 'up' : 'neutral',
@@ -95,8 +101,8 @@ export function ReportsSummaryCards({
       value: summary.branches.total.toLocaleString(),
       subtitle: `${summary.branches.active} สาขาเปิดทำการ`,
       icon: Building2,
-      color: 'text-green-600',
-      bgColor: 'bg-green-50 dark:bg-green-950',
+      color: 'text-primary',
+      bgColor: 'bg-primary/10',
       progress: summary.branches.total > 0 ? (summary.branches.active / summary.branches.total) * 100 : 0,
       progressLabel: 'เปิดทำการ',
       trend: 'up',
@@ -108,8 +114,8 @@ export function ReportsSummaryCards({
       value: formatCurrency(summary.sales.total),
       subtitle: `ช่วงเวลา: ${summary.sales.period}`,
       icon: TrendingUp,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-50 dark:bg-orange-950',
+      color: 'text-primary',
+      bgColor: 'bg-primary/10',
       progress: Math.min((summary.sales.total / 1000000) * 100, 100), // Cap at 100%
       progressLabel: 'เป้าหมาย 1M',
       trend: summary.sales.total > 0 ? 'up' : 'neutral',
@@ -121,8 +127,8 @@ export function ReportsSummaryCards({
       value: summary.materials.totalItems.toLocaleString(),
       subtitle: `ค่าใช้จ่าย: ${formatCurrency(summary.materials.recentUsageCost)}`,
       icon: Package,
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50 dark:bg-purple-950',
+      color: 'text-primary',
+      bgColor: 'bg-primary/10',
       progress: Math.min((summary.materials.recentUsageCost / 100000) * 100, 100), // Cap at 100%
       progressLabel: 'งบประมาณ 100K',
       trend: summary.materials.recentUsageCost < 50000 ? 'up' : 'down',
@@ -131,74 +137,90 @@ export function ReportsSummaryCards({
   ]
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {summaryCards.map((card) => {
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {summaryCards.map((card, index) => {
         const Icon = card.icon
-        const TrendIcon = card.trend === 'up' ? ArrowUpRight : 
+        const TrendIcon = card.trend === 'up' ? ArrowUpRight :
                          card.trend === 'down' ? ArrowDownRight : Activity
 
         return (
-          <Card 
-            key={card.id} 
-            className="border-0 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer group"
+          <Card
+            key={card.id}
+            className="border border-border bg-background shadow-sm rounded-lg transition-all hover:shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:border-muted dark:bg-muted/30"
             onClick={() => onCardClick?.(card.id)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                onCardClick?.(card.id)
+              }
+            }}
+            aria-label={`View ${card.title} details`}
           >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {card.title}
-              </CardTitle>
-              <div className={`p-2 rounded-lg ${card.bgColor} group-hover:scale-105 transition-transform`}>
-                <Icon className={`h-4 w-4 ${card.color}`} />
+
+
+            {/* Card Header */}
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-sm font-medium text-foreground">
+                    {card.title}
+                  </CardTitle>
+                </div>
+                <div className={`p-2 rounded-lg ${card.bgColor}`}>
+                  <Icon className={`h-4 w-4 ${card.color}`} />
+                </div>
               </div>
             </CardHeader>
-            
-            <CardContent>
-              <div className="space-y-3">
-                {/* Main Value */}
-                <div>
-                  <div className="text-2xl font-bold group-hover:text-primary transition-colors">
-                    {card.value}
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {card.subtitle}
-                  </div>
-                </div>
 
-                {/* Progress Bar */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">
-                      {card.progressLabel}
-                    </span>
-                    <span className="text-xs font-medium">
-                      {Math.round(card.progress)}%
-                    </span>
-                  </div>
-                  <Progress 
-                    value={card.progress} 
-                    className="h-2"
-                  />
+            {/* Card Content */}
+            <CardContent className="space-y-4 pt-2">
+              {/* Main Value */}
+              <div className="space-y-1">
+                <div className="text-2xl font-bold text-foreground">
+                  {card.value}
                 </div>
+                <div className="text-xs text-muted-foreground">
+                  {card.subtitle}
+                </div>
+              </div>
 
-                {/* Status Badge and Trend */}
+              {/* Progress Bar */}
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Badge 
-                    variant={card.trend === 'up' ? 'default' : card.trend === 'down' ? 'destructive' : 'secondary'}
-                    className="text-xs"
-                  >
-                    {card.badge}
-                  </Badge>
-                  
-                  <div className={`flex items-center gap-1 text-xs ${
-                    card.trend === 'up' ? 'text-green-600' : 
-                    card.trend === 'down' ? 'text-red-600' : 
-                    'text-gray-600'
-                  }`}>
-                    <TrendIcon className="h-3 w-3" />
-                    <span className="font-medium">
-                      {card.trend === 'up' ? 'ดี' : card.trend === 'down' ? 'ต้องปรับปรุง' : 'ปกติ'}
-                    </span>
-                  </div>
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {card.progressLabel}
+                  </span>
+                  <span className="text-xs font-bold text-foreground">
+                    {Math.round(card.progress)}%
+                  </span>
+                </div>
+                <Progress 
+                  value={card.progress} 
+                  className="h-2 bg-muted"
+                  indicatorClassName="bg-primary"
+                />
+              </div>
+
+              {/* Status Badge and Trend */}
+              <div className="flex items-center justify-between pt-2">
+                <Badge
+                  variant={card.trend === 'up' ? 'default' : card.trend === 'down' ? 'destructive' : 'secondary'}
+                  className="text-xs px-2 py-1"
+                >
+                  {card.badge}
+                </Badge>
+
+                <div className={`flex items-center gap-1 text-xs ${
+                  card.trend === 'up' ? 'text-green-600 dark:text-green-400' :
+                  card.trend === 'down' ? 'text-red-600 dark:text-red-400' :
+                  'text-muted-foreground'
+                }`}>
+                  <TrendIcon className="h-3 w-3" />
+                  <span>
+                    {card.trend === 'up' ? 'ดีเยี่ยม' : card.trend === 'down' ? 'ต้องปรับปรุง' : 'ปกติ'}
+                  </span>
                 </div>
               </div>
             </CardContent>

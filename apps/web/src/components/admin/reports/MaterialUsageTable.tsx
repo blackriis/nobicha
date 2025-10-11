@@ -38,20 +38,28 @@ interface MaterialUsageTableProps {
     averageQuantityPerUsage: number
   }>
   isLoading: boolean
+  selectedBranchId: string | null
 }
 
 type SortField = 'materialName' | 'totalCost' | 'usageCount' | 'totalQuantity' | 'averageCostPerUsage'
 type SortDirection = 'asc' | 'desc'
 
-export function MaterialUsageTable({ materials, isLoading }: MaterialUsageTableProps) {
+export function MaterialUsageTable({ materials, isLoading, selectedBranchId }: MaterialUsageTableProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [sortField, setSortField] = useState<SortField>('totalCost')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10
 
+  // Client-side branch filtering
+  const branchFilteredMaterials = selectedBranchId
+    ? materials.filter(material =>
+        material.branches.includes(selectedBranchId)
+      )
+    : materials
+
   // Filter materials based on search term
-  const filteredMaterials = materials.filter(material =>
+  const filteredMaterials = branchFilteredMaterials.filter(material =>
     material.materialName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     material.supplier.toLowerCase().includes(searchTerm.toLowerCase())
   )
@@ -141,9 +149,17 @@ export function MaterialUsageTable({ materials, isLoading }: MaterialUsageTableP
             <CardTitle className="flex items-center gap-2">
               <Package className="h-5 w-5" />
               ตารางการใช้วัตถุดิบ
+              {selectedBranchId && (
+                <Badge variant="secondary" className="ml-2">
+                  กรองตามสาขา
+                </Badge>
+              )}
             </CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              ข้อมูลการใช้งานและต้นทุนวัตถุดิบแต่ละรายการ
+              {selectedBranchId
+                ? `แสดงเฉพาะวัตถุดิบที่ใช้ในสาขาที่เลือก (${filteredMaterials.length} รายการ)`
+                : `ข้อมูลการใช้งานและต้นทุนวัตถุดิบแต่ละรายการ`
+              }
             </p>
           </div>
           
@@ -160,8 +176,16 @@ export function MaterialUsageTable({ materials, isLoading }: MaterialUsageTableP
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent>
+        {/* Empty state for filtered results */}
+        {selectedBranchId && filteredMaterials.length === 0 && !searchTerm ? (
+          <div className="p-8 text-center">
+            <Package className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500">ไม่พบวัตถุดิบที่ใช้ในสาขานี้</p>
+          </div>
+        ) : (
+          <>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -298,6 +322,8 @@ export function MaterialUsageTable({ materials, isLoading }: MaterialUsageTableP
               </Button>
             </div>
           </div>
+        )}
+          </>
         )}
       </CardContent>
     </Card>

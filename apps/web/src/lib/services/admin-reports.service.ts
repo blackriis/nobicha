@@ -150,6 +150,14 @@ export interface MaterialReport {
   }>
 }
 
+export interface MonthlyTrendData {
+  month: string // Format: "YYYY-MM"
+  monthLabel: string // Display label: "ม.ค. 2025"
+  totalCost: number
+  totalUsageCount: number
+  uniqueMaterialsUsed: number
+}
+
 export interface AdminReportsServiceResult<T = unknown> {
   data: T | null
   error: string | null
@@ -349,8 +357,8 @@ class AdminReportsService {
 
   // Get material usage reports
   async getMaterialReports(
-    dateRange: DateRangeFilter, 
-    branchId: string | null = null, 
+    dateRange: DateRangeFilter,
+    branchId: string | null = null,
     limit: number = 100
   ): Promise<AdminReportsServiceResult<MaterialReport>> {
     try {
@@ -359,20 +367,20 @@ class AdminReportsService {
         queryParams.append('branchId', branchId)
       }
       queryParams.append('limit', limit.toString())
-      
+
       const url = `/api/admin/reports/materials?${queryParams.toString()}`
-      
+
       console.log('🌐 Making materials API request:', { url, dateRange, branchId, limit })
-      
+
       const response = await fetch(url, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         }
       })
-      
+
       console.log('🔍 Response status:', response.status, response.statusText)
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         console.log('❌ API Error:', errorData)
@@ -395,6 +403,58 @@ class AdminReportsService {
       return {
         data: null,
         error: 'เกิดข้อผิดพลาดในการดึงข้อมูลรายงานวัตถุดิบ',
+        success: false
+      }
+    }
+  }
+
+  // Get monthly trend data for materials
+  async getMaterialMonthlyTrend(
+    months: 3 | 6 | 12 = 3,
+    branchId: string | null = null
+  ): Promise<AdminReportsServiceResult<MonthlyTrendData[]>> {
+    try {
+      const queryParams = new URLSearchParams()
+      queryParams.set('months', months.toString())
+      if (branchId) {
+        queryParams.set('branchId', branchId)
+      }
+
+      const url = `/api/admin/reports/materials/trend?${queryParams.toString()}`
+
+      console.log('🌐 Making materials trend API request:', { url, months, branchId })
+
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+
+      console.log('🔍 Trend response status:', response.status, response.statusText)
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.log('❌ Trend API Error:', errorData)
+        return {
+          data: null,
+          error: errorData.error || 'ไม่สามารถดึงข้อมูลแนวโน้มรายเดือนได้',
+          success: false
+        }
+      }
+
+      const result = await response.json()
+      console.log('✅ Trend API Success:', { hasData: !!result.data, dataLength: result.data?.length })
+      return {
+        data: result.data,
+        error: null,
+        success: true
+      }
+    } catch (error) {
+      console.error('Material trend service error:', error)
+      return {
+        data: null,
+        error: 'เกิดข้อผิดพลาดในการดึงข้อมูลแนวโน้มรายเดือน',
         success: false
       }
     }

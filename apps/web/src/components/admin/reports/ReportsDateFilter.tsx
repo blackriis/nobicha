@@ -1,13 +1,16 @@
 'use client'
 
-import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, CalendarDays, Clock, Filter, Activity } from 'lucide-react'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Calendar as CalendarIcon, CalendarDays, Clock, Filter } from 'lucide-react'
+import { Calendar } from '@/components/ui/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
+import { format } from 'date-fns'
+import { th } from 'date-fns/locale'
 import type { DateRangeFilter } from '@/lib/services/admin-reports.service'
+import type { DateRange } from 'react-day-picker'
 
 interface ReportsDateFilterProps {
   selectedRange: DateRangeFilter
@@ -15,82 +18,61 @@ interface ReportsDateFilterProps {
   isLoading?: boolean
 }
 
-export function ReportsDateFilter({ 
-  selectedRange, 
-  onRangeChange, 
-  isLoading = false 
+export function ReportsDateFilter({
+  selectedRange,
+  onRangeChange,
+  isLoading = false
 }: ReportsDateFilterProps) {
-  const [showCustomDates, setShowCustomDates] = useState(selectedRange.type === 'custom')
+  const [dateRangePickerValue, setDateRangePickerValue] = useState<DateRange | undefined>(() => {
+    if (selectedRange.type === 'custom' && selectedRange.startDate && selectedRange.endDate) {
+      return {
+        from: new Date(selectedRange.startDate),
+        to: new Date(selectedRange.endDate)
+      }
+    }
+    return undefined
+  })
+
+  // Track screen size for responsive calendar
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   const dateRangeOptions = [
     {
-      label: 'ทั้งหมด',
-      value: 'all' as const,
-      icon: Activity,
-      description: 'ข้อมูลทั้งหมดในระบบ'
-    },
-    {
       label: 'วันนี้',
       value: 'today' as const,
-      icon: Calendar,
-      description: 'ข้อมูลวันปัจจุบัน'
+      icon: CalendarIcon
     },
     {
       label: 'สัปดาห์นี้',
       value: 'week' as const,
-      icon: CalendarDays,
-      description: '7 วันย้อนหลัง'
+      icon: CalendarDays
     },
     {
       label: 'เดือนนี้',
       value: 'month' as const,
-      icon: Clock,
-      description: '30 วันย้อนหลัง'
-    },
-    {
-      label: 'กำหนดเอง',
-      value: 'custom' as const,
-      icon: Filter,
-      description: 'เลือกช่วงเวลาเอง'
+      icon: Clock
     }
   ]
 
   const handleRangeSelect = (type: DateRangeFilter['type']) => {
-    if (type === 'custom') {
-      setShowCustomDates(true)
-      // Set default custom range (last 30 days)
-      const today = new Date()
-      const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
-      
+    onRangeChange({ type })
+  }
+
+  const handleDateRangeSelect = (range: DateRange | undefined) => {
+    setDateRangePickerValue(range)
+    if (range?.from && range?.to) {
       onRangeChange({
         type: 'custom',
-        startDate: thirtyDaysAgo.toISOString().split('T')[0],
-        endDate: today.toISOString().split('T')[0]
+        startDate: format(range.from, 'yyyy-MM-dd'),
+        endDate: format(range.to, 'yyyy-MM-dd')
       })
-    } else {
-      setShowCustomDates(false)
-      onRangeChange({ type })
-    }
-  }
-
-  const handleCustomDateChange = (field: 'startDate' | 'endDate', value: string) => {
-    if (selectedRange.type === 'custom') {
-      onRangeChange({
-        ...selectedRange,
-        [field]: value
-      })
-    }
-  }
-
-  const formatDisplayDate = (date: string): string => {
-    try {
-      return new Date(date).toLocaleDateString('th-TH', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      })
-    } catch {
-      return date
     }
   }
 
@@ -103,109 +85,100 @@ export function ReportsDateFilter({
       case 'month':
         return 'เดือนนี้'
       case 'custom':
-        if (selectedRange.startDate && selectedRange.endDate) {
-          return `${formatDisplayDate(selectedRange.startDate)} - ${formatDisplayDate(selectedRange.endDate)}`
+        if (dateRangePickerValue?.from && dateRangePickerValue?.to) {
+          return `${format(dateRangePickerValue.from, 'dd MMM yyyy', { locale: th })} - ${format(dateRangePickerValue.to, 'dd MMM yyyy', { locale: th })}`
         }
-        return 'กำหนดเอง'
+        return 'เลือกช่วงวันที่'
       default:
         return 'เลือกช่วงเวลา'
     }
   }
 
   return (
-    <Card className="border-0 shadow-sm">
-      <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Filter className="h-5 w-5 text-blue-600" />
-            <div>
-              <CardTitle className="text-lg">ช่วงเวลาในการดูรายงาน</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                เลือกช่วงเวลาสำหรับแสดงข้อมูลรายงาน
-              </p>
-            </div>
+    <div className="space-y-4">
+      {/* Header Section */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-primary/10 dark:bg-primary/20 rounded-lg">
+            <Filter className="h-5 w-5 text-primary" />
           </div>
-          <Badge variant="outline" className="gap-1">
-            <Clock className="h-3 w-3" />
-            {getSelectedRangeLabel()}
-          </Badge>
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">ช่วงเวลาในการดูรายงาน</h2>
+            <p className="text-sm text-muted-foreground">
+              เลือกช่วงเวลาสำหรับแสดงข้อมูลรายงาน
+            </p>
+          </div>
         </div>
-      </CardHeader>
+        <Badge variant="outline" className="gap-2">
+          <Clock className="h-3.5 w-3.5" />
+          <span className="text-xs font-medium">{getSelectedRangeLabel()}</span>
+        </Badge>
+      </div>
 
-      <CardContent className="space-y-4">
-        {/* Date Range Options */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* Filter Options */}
+      <div className="bg-card dark:bg-card border border-border rounded-lg p-4">
+        <div className="flex flex-wrap gap-2">
           {dateRangeOptions.map((option) => {
             const Icon = option.icon
             const isSelected = selectedRange.type === option.value
-            
+
             return (
               <Button
                 key={option.value}
                 variant={isSelected ? "default" : "outline"}
                 onClick={() => handleRangeSelect(option.value)}
                 disabled={isLoading}
-                className={`h-auto p-4 flex flex-col items-center gap-2 ${
-                  isSelected ? 'ring-2 ring-primary ring-offset-2' : ''
-                }`}
+                size="sm"
+                className={cn(
+                  "gap-2 font-medium",
+                  isSelected 
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90 dark:bg-primary dark:text-primary-foreground" 
+                    : "bg-background dark:bg-background hover:bg-accent dark:hover:bg-accent"
+                )}
               >
-                <Icon className="h-5 w-5" />
-                <div className="text-center">
-                  <div className="font-medium text-sm">{option.label}</div>
-                  <div className="text-xs opacity-75">{option.description}</div>
-                </div>
+                <Icon className="h-4 w-4" />
+                {option.label}
               </Button>
             )
           })}
-        </div>
 
-        {/* Custom Date Inputs */}
-        {showCustomDates && selectedRange.type === 'custom' && (
-          <div className="mt-6 p-4 bg-muted/50 rounded-lg border">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="start-date" className="text-sm font-medium">
-                  วันที่เริ่มต้น
-                </Label>
-                <Input
-                  id="start-date"
-                  type="date"
-                  value={selectedRange.startDate || ''}
-                  onChange={(e) => handleCustomDateChange('startDate', e.target.value)}
-                  disabled={isLoading}
-                  className="w-full"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="end-date" className="text-sm font-medium">
-                  วันที่สิ้นสุด
-                </Label>
-                <Input
-                  id="end-date"
-                  type="date"
-                  value={selectedRange.endDate || ''}
-                  onChange={(e) => handleCustomDateChange('endDate', e.target.value)}
-                  disabled={isLoading}
-                  className="w-full"
-                />
-              </div>
-            </div>
-            
-            {selectedRange.startDate && selectedRange.endDate && (
-              <div className="mt-3 text-sm text-muted-foreground">
-                ช่วงเวลาที่เลือก: {formatDisplayDate(selectedRange.startDate)} ถึง {formatDisplayDate(selectedRange.endDate)}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Quick Stats */}
-        <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-          <Badge variant="secondary" className="text-xs">
-            💡 เคล็ดลับ: เลือกช่วงเวลาที่เหมาะสมเพื่อข้อมูลที่แม่นยำ
-          </Badge>
+          {/* Date Range Picker */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant={selectedRange.type === 'custom' ? "default" : "outline"}
+                size="sm"
+                disabled={isLoading}
+                className={cn(
+                  "gap-2 font-medium min-w-[180px] justify-start",
+                  selectedRange.type === 'custom'
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90 dark:bg-primary dark:text-primary-foreground"
+                    : "bg-background dark:bg-background hover:bg-accent dark:hover:bg-accent"
+                )}
+              >
+                <CalendarIcon className="h-4 w-4" />
+                {selectedRange.type === 'custom' && dateRangePickerValue?.from && dateRangePickerValue?.to
+                  ? `${format(dateRangePickerValue.from, 'dd MMM', { locale: th })} - ${format(dateRangePickerValue.to, 'dd MMM', { locale: th })}`
+                  : 'เลือกช่วงวันที่'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-auto p-0 bg-card dark:bg-card border-border"
+              align="end"
+            >
+              <Calendar
+                mode="range"
+                selected={dateRangePickerValue}
+                onSelect={handleDateRangeSelect}
+                numberOfMonths={isMobile ? 1 : 2}
+                locale={th}
+                disabled={isLoading}
+                className="bg-card dark:bg-card"
+              />
+            </PopoverContent>
+          </Popover>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
