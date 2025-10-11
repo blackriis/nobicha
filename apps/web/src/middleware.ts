@@ -138,7 +138,30 @@ export async function middleware(req: NextRequest) {
 
   // If user is not authenticated and trying to access protected route
   if ((!user || authError) && !isPublicRoute) {
-    const redirectUrl = new URL('/login/employee', req.url)
+    // Determine appropriate login page based on requested path
+    const loginPage = pathname.startsWith('/admin') ? '/login/admin' : '/login/employee'
+    const redirectUrl = new URL(loginPage, req.url)
+    
+    // Preserve the intended path for redirect after login
+    redirectUrl.searchParams.set('redirectTo', pathname)
+    
+    console.log('🔐 Middleware: Redirecting unauthenticated user:', {
+      originalPath: pathname,
+      redirectUrl: redirectUrl.toString(),
+      userAgent: req.headers.get('user-agent'),
+      timestamp: new Date().toISOString()
+    })
+    
+    // Also store in cookie for persistence
+    response.cookies.set('redirectTo', pathname, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 5, // 5 minutes
+    })
+    
+    console.log('🍪 Middleware: Set redirect cookie:', pathname)
+    
     return NextResponse.redirect(redirectUrl)
   }
 
