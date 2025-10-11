@@ -6,9 +6,10 @@ module.exports = {
     './components/**/*.{ts,tsx}',
     './app/**/*.{ts,tsx}',
     './src/**/*.{ts,tsx}',
-    './src/components/**/*.{ts,tsx}',
-    './src/app/**/*.{ts,tsx}',
-    '../../packages/ui/**/*.{ts,tsx}',
+    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    '../../packages/ui/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   prefix: "",
   theme: {
@@ -61,7 +62,7 @@ module.exports = {
           "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
           accent: "hsl(var(--sidebar-accent))",
           "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
-          border: "hsl(var(--sidebar-border)",
+          border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
         chart: {
