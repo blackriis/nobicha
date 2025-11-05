@@ -55,8 +55,8 @@ export async function middleware(req: NextRequest) {
   response.headers.set('Content-Security-Policy', cspDirectives)
 
   // Public routes that don't require authentication
-  const publicRoutes = ['/', '/login/employee', '/login/admin', '/unauthorized', '/api/test-db', '/api/user/profile']
-  const isPublicRoute = publicRoutes.some(route => pathname === route) || pathname.startsWith('/api/')
+  const publicRoutes = ['/', '/login/employee', '/login/admin', '/unauthorized', '/api/test-db', '/api/user/profile', '/404']
+  const isPublicRoute = publicRoutes.some(route => pathname === route) || pathname.startsWith('/api/') || pathname.startsWith('/_not-found')
 
   // Skip Supabase operations if using placeholder values
   const isPlaceholderConfig = appConfig.supabase.url.includes('placeholder') || 
@@ -193,11 +193,8 @@ export async function middleware(req: NextRequest) {
       
       // Treat network errors as unauthenticated to allow fallback behavior
       // This prevents the middleware from crashing and allows the app to continue
-      authError = {
-        message: 'Network error during authentication',
-        name: 'NetworkError',
-        status: 0
-      } as Error
+      authError = new Error('Network error during authentication')
+      authError.name = 'NetworkError'
     } else {
       // Re-throw unexpected errors
       console.error('❌ Middleware: Unexpected auth error:', {
