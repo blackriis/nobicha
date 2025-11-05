@@ -3,6 +3,7 @@ import type { User } from '@supabase/supabase-js'
 import type { Database } from '@employee-management/database'
 import { validateSignInData, validateSignUpData } from './validation'
 import { userCache } from './user-cache'
+import { config } from '@employee-management/config'
 
 export type UserProfile = Database['public']['Tables']['users']['Row']
 export type UserRole = Database['public']['Enums']['user_role']
@@ -21,51 +22,127 @@ export const auth = {
       throw new Error(`Validation failed: ${validation.errors.join(', ')}`)
     }
     
+    // Check Supabase configuration before attempting sign in
+    try {
+      const url = config.supabase.url
+      const anonKey = config.supabase.anonKey
+      
+      if (!url || url.includes('placeholder') || !anonKey || anonKey.includes('placeholder')) {
+        throw new Error('Supabase configuration is missing or invalid. Please check your environment variables.')
+      }
+    } catch (configError) {
+      console.error('❌ Supabase configuration error:', configError)
+      throw new Error('ระบบยังไม่ได้ตั้งค่า Supabase กรุณาตรวจสอบการตั้งค่าและ restart server')
+    }
+    
     try {
       const supabase = createClientComponentClient()
-      
+
       // Add better error handling for network issues
       console.log('🔐 Attempting sign in with Supabase...', {
         email: validation.sanitized!.email,
-        supabaseUrl: supabase.supabaseUrl,
-        hasKey: !!supabase.supabaseKey
+        supabaseUrl: config.supabase.url,
+        hasKey: !!config.supabase.anonKey
       })
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
+
+      // Wrap signInWithPassword with timeout and better error handling
+      const signInPromise = supabase.auth.signInWithPassword({
         email: validation.sanitized!.email,
         password,
       })
-      
-      if (error) {
-        console.error('❌ Supabase auth error:', {
-          message: error.message,
-          status: error.status,
-          name: error.name
-        })
-        throw error
+
+      // Add timeout to prevent hanging requests (30 seconds)
+      let timeoutId: ReturnType<typeof setTimeout> | null = null
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error('Request timeout: การเชื่อมต่อใช้เวลานานเกินไป'))
+        }, 30000)
+      })
+
+      try {
+        const result = await Promise.race([
+          signInPromise.then(result => {
+            if (timeoutId) clearTimeout(timeoutId)
+            return result
+          }),
+          timeoutPromise
+        ])
+
+        const { data, error } = result
+
+        if (error) {
+          console.error('❌ Supabase auth error:', {
+            message: error.message,
+            status: error.status,
+            name: error.name
+          })
+          throw error
+        }
+
+        console.log('✅ Sign in successful')
+
+        // Get user profile after successful login
+        if (data.user) {
+          const profile = await getUserProfile(data.user.id)
+          return { ...data, user: { ...data.user, profile } as AuthUser }
+        }
+
+        return data
+      } catch (raceError) {
+        // Handle timeout or other race errors
+        if (timeoutId) clearTimeout(timeoutId)
+        throw raceError
       }
-      
-      console.log('✅ Sign in successful')
-      
-      // Get user profile after successful login
-      if (data.user) {
-        const profile = await getUserProfile(data.user.id)
-        return { ...data, user: { ...data.user, profile } as AuthUser }
-      }
-      
-      return data
     } catch (error) {
       // Enhanced error handling for fetch failures
       if (error instanceof Error) {
-        if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
+        const errorMessage = error.message.toLowerCase()
+        const errorName = error.name
+
+        // Network connectivity errors (DNS, connection refused, etc.)
+        if (errorMessage.includes('failed to fetch') ||
+            errorMessage.includes('fetch failed') ||
+            errorMessage.includes('network request failed') ||
+            errorMessage.includes('networkerror') ||
+            errorName === 'TypeError' ||
+            errorName === 'NetworkError' ||
+            errorMessage.includes('network')) {
           console.error('🌐 Network connectivity error:', {
             message: error.message,
             name: error.name,
             stack: error.stack
           })
-          throw new Error('เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่าย กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต')
+
+          // More specific error message for better troubleshooting
+          throw new Error('ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ กรุณาตรวจสอบ:\n' +
+            '1. การเชื่อมต่ออินเทอร์เน็ต\n' +
+            '2. Firewall หรือ VPN ที่อาจบล็อกการเชื่อมต่อ\n' +
+            '3. สถานะของ Supabase project (ดูที่ dashboard)\n' +
+            '4. ลอง restart development server และลองใหม่อีกครั้ง')
+        }
+
+        // Timeout errors
+        if (errorMessage.includes('timeout') || errorMessage.includes('request timeout')) {
+          console.error('⏱️ Request timeout error:', {
+            message: error.message,
+            name: error.name
+          })
+          throw new Error('การเชื่อมต่อใช้เวลานานเกินไป กรุณาตรวจสอบความเร็วของอินเทอร์เน็ตและลองใหม่')
+        }
+
+        // Configuration errors
+        if (errorMessage.includes('configuration') ||
+            errorMessage.includes('not configured') ||
+            errorMessage.includes('invalid supabase url')) {
+          console.error('⚙️ Configuration error:', {
+            message: error.message,
+            name: error.name
+          })
+          throw new Error('การตั้งค่า Supabase ไม่ถูกต้อง กรุณาติดต่อผู้ดูแลระบบหรือตรวจสอบไฟล์ .env.local')
         }
       }
+
+      // Re-throw original error if not handled above
       throw error
     }
   },
@@ -221,13 +298,18 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
       tokenPreview: session.access_token ? session.access_token.substring(0, 20) + '...' : 'No token'
     })
     
-    const response = await fetch('/api/user/profile', {
+    // Use enhanced fetch with error handling
+    const { fetchWithErrorHandling } = await import('@/lib/fetch-utils')
+    
+    const response = await fetchWithErrorHandling('/api/user/profile', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${session.access_token}`,
       },
-      credentials: 'include' // Include auth cookies
+      credentials: 'include', // Include auth cookies
+      timeout: 15000,
+      retries: 1
     })
     
     console.log('API response received:', {

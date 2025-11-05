@@ -59,6 +59,11 @@ export function EmployeeReportsSection({
  isLoading = false,
  onViewDetails 
 }: EmployeeReportsSectionProps) {
+ // Calculate maxHours before any early returns (React Hook rules)
+ const maxHours = useMemo(() => {
+  if (!data) return 0
+  return Math.max(...data.employees.map(e => e.totalHours))
+ }, [data])
  
  if (isLoading) {
   return (
@@ -141,11 +146,6 @@ export function EmployeeReportsSection({
  const getStatusIcon = (status: string) => {
   return STATUS_STYLES[status]?.icon ?? STATUS_STYLES.default.icon
  }
-
- const maxHours = useMemo(() => {
-  if (!data) return 0
-  return Math.max(...data.employees.map(e => e.totalHours))
- }, [data])
 
  const topEmployees = data.employees.slice(0, 10) // Show top 10 employees
 

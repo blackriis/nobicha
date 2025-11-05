@@ -2,15 +2,17 @@ import { AdminLayout } from '@/components/admin/AdminLayout'
 import { EditEmployeePage } from '@/components/admin/EditEmployeePage'
 
 interface EditEmployeeProps {
- params: {
+ params: Promise<{
   id: string
- }
+ }>
 }
 
-export default function EditEmployee({ params }: EditEmployeeProps) {
+export default async function EditEmployee({ params }: EditEmployeeProps) {
+ // Await params before using (Next.js 15 requires params to be a Promise)
+ const { id } = await params
  return (
   <AdminLayout>
-   <EditEmployeePage employeeId={params.id} />
+   <EditEmployeePage employeeId={id} />
   </AdminLayout>
  )
 }

@@ -4,16 +4,16 @@ import { authRateLimiter } from '@/lib/rate-limit'
 import { createClient } from '@/lib/supabase-server'
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string // shift id
-  }
+  }>
 }
 
 // GET /api/admin/shifts/[id] - Get shift by ID
-export async function GET(request: NextRequest, { params }: RouteParams) {
+export async function GET(request: NextRequest, context: RouteParams) {
   try {
-    // Await params before using
-    const { id } = await params
+    // Await params before using (Next.js 15 requires params to be a Promise)
+    const { id } = await context.params
     
     // Rate limiting
     const rateLimitResult = await authRateLimiter.checkLimit(request)
@@ -74,10 +74,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 }
 
 // PUT /api/admin/shifts/[id] - Update shift
-export async function PUT(request: NextRequest, { params }: RouteParams) {
+export async function PUT(request: NextRequest, context: RouteParams) {
   try {
-    // Await params before using
-    const { id } = await params
+    // Await params before using (Next.js 15 requires params to be a Promise)
+    const { id } = await context.params
     
     // Rate limiting
     const rateLimitResult = await authRateLimiter.checkLimit(request)
@@ -164,10 +164,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 }
 
 // DELETE /api/admin/shifts/[id] - Delete shift
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+export async function DELETE(request: NextRequest, context: RouteParams) {
   try {
-    // Await params before using
-    const { id } = await params
+    // Await params before using (Next.js 15 requires params to be a Promise)
+    const { id } = await context.params
     
     // Rate limiting
     const rateLimitResult = await authRateLimiter.checkLimit(request)

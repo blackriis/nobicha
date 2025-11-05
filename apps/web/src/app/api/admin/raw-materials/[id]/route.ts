@@ -4,13 +4,14 @@ import { authRateLimiter } from '@/lib/rate-limit'
 import { validateRequestBody, isValidUUID } from '@/lib/validation'
 
 type RouteParams = {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 // PUT /api/admin/raw-materials/[id] - Update raw material
-export async function PUT(request: NextRequest, { params }: RouteParams) {
+export async function PUT(request: NextRequest, context: RouteParams) {
   try {
-    const { id } = params
+    // Await params before using (Next.js 15 requires params to be a Promise)
+    const { id } = await context.params
 
     // Validate UUID format
     if (!isValidUUID(id)) {
@@ -166,9 +167,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 }
 
 // DELETE /api/admin/raw-materials/[id] - Delete raw material
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+export async function DELETE(request: NextRequest, context: RouteParams) {
   try {
-    const { id } = params
+    // Await params before using (Next.js 15 requires params to be a Promise)
+    const { id } = await context.params
 
     // Validate UUID format
     if (!isValidUUID(id)) {

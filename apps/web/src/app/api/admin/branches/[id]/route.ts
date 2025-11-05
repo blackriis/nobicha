@@ -5,16 +5,16 @@ import { validateGPSCoordinates } from '@/lib/utils/gps.utils'
 import type { Database } from '@employee-management/database'
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 // GET /api/admin/branches/[id] - Get branch by ID
-export async function GET(request: NextRequest, { params }: RouteParams) {
+export async function GET(request: NextRequest, context: RouteParams) {
   try {
-    // Await params before using
-    const { id } = await params
+    // Await params before using (Next.js 15 requires params to be a Promise)
+    const { id } = await context.params
     
     // Rate limiting
     const rateLimitResult = await authRateLimiter.checkLimit(request)
@@ -80,10 +80,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 }
 
 // PUT /api/admin/branches/[id] - Update branch
-export async function PUT(request: NextRequest, { params }: RouteParams) {
+export async function PUT(request: NextRequest, context: RouteParams) {
   try {
-    // Await params before using
-    const { id } = await params
+    // Await params before using (Next.js 15 requires params to be a Promise)
+    const { id } = await context.params
     
     // Rate limiting
     const rateLimitResult = await authRateLimiter.checkLimit(request)
@@ -222,10 +222,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 }
 
 // DELETE /api/admin/branches/[id] - Delete branch
-export async function DELETE(request: NextRequest, { params }: RouteParams) {
+export async function DELETE(request: NextRequest, context: RouteParams) {
   try {
-    // Await params before using
-    const { id } = await params
+    // Await params before using (Next.js 15 requires params to be a Promise)
+    const { id } = await context.params
     
     // Rate limiting
     const rateLimitResult = await authRateLimiter.checkLimit(request)

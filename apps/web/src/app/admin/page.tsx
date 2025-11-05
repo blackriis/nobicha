@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, memo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { AdminLayout } from '@/components/admin/AdminLayout' 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -428,7 +428,7 @@ const ActivityPanel = ({ recentActivity, stats }: { recentActivity: ActivityItem
  </aside>
 )
 
-const AdminDashboard = memo(function AdminDashboard() {
+function AdminDashboard() {
  const { stats, loading, error } = useAdminStats()
  
  const quickActions = useMemo(() => createQuickActions(stats), [stats])
@@ -468,8 +468,6 @@ const AdminDashboard = memo(function AdminDashboard() {
    </div>
   </AdminLayout>
  )
-})
-
-AdminDashboard.displayName = 'AdminDashboard'
+}
 
 export default AdminDashboard

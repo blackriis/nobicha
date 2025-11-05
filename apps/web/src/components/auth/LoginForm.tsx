@@ -95,12 +95,41 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
    // Show user-friendly error messages
    let errorMessage = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'
    
-   if (error.message?.includes('Validation failed')) {
-    errorMessage = 'ข้อมูลที่กรอกไม่ถูกต้อง กรุณาตรวจสอบและลองใหม่'
-   } else if (error.message?.includes('Invalid login credentials')) {
-    errorMessage = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
-   } else if (error.message?.includes('Too many requests')) {
-    errorMessage = 'คุณพยายามเข้าสู่ระบบบ่อยเกินไป กรุณารอสักครู่และลองใหม่'
+   if (error instanceof Error) {
+    const errorMsg = error.message.toLowerCase()
+    
+    // Network errors
+    if (errorMsg.includes('เครือข่าย') || errorMsg.includes('network') || errorMsg.includes('failed to fetch')) {
+     errorMessage = 'เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่าย กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่'
+    }
+    // Timeout errors
+    else if (errorMsg.includes('timeout') || errorMsg.includes('ใช้เวลานานเกินไป')) {
+     errorMessage = 'การเชื่อมต่อใช้เวลานานเกินไป กรุณาลองใหม่อีกครั้ง'
+    }
+    // Configuration errors
+    else if (errorMsg.includes('configuration') || errorMsg.includes('ตั้งค่า') || errorMsg.includes('supabase')) {
+     errorMessage = 'การตั้งค่าระบบไม่ถูกต้อง กรุณาติดต่อผู้ดูแลระบบ'
+    }
+    // Validation errors
+    else if (errorMsg.includes('validation failed')) {
+     errorMessage = 'ข้อมูลที่กรอกไม่ถูกต้อง กรุณาตรวจสอบและลองใหม่'
+    }
+    // Auth errors
+    else if (errorMsg.includes('invalid login credentials') || errorMsg.includes('invalid credentials')) {
+     errorMessage = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
+    }
+    // Rate limit errors
+    else if (errorMsg.includes('too many requests') || errorMsg.includes('rate limit')) {
+     errorMessage = 'คุณพยายามเข้าสู่ระบบบ่อยเกินไป กรุณารอสักครู่และลองใหม่'
+    }
+    // Email not confirmed
+    else if (errorMsg.includes('email not confirmed') || errorMsg.includes('email_not_confirmed')) {
+     errorMessage = 'กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ'
+    }
+    // Use the error message if it's already in Thai or user-friendly
+    else if (error.message && error.message.length < 100) {
+     errorMessage = error.message
+    }
    }
    
    setError(errorMessage)

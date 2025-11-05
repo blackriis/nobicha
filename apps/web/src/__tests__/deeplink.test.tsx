@@ -34,16 +34,19 @@ beforeEach(() => {
   mockSignIn.mockClear()
   
   // Setup router mock
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   ;(require('next/navigation').useRouter as jest.Mock).mockReturnValue({
     push: mockPush
   })
   
   // Setup searchParams mock
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   ;(require('next/navigation').useSearchParams as jest.Mock).mockReturnValue({
     get: mockGet
   })
   
   // Setup auth mock
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   ;(require('@/components/auth').useAuth as jest.Mock).mockReturnValue({
     user: null,
     loading: false,

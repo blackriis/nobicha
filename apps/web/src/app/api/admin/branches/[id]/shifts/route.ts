@@ -5,16 +5,16 @@ import { validateRequestBody } from '@/lib/validation'
 import { createClient } from '@/lib/supabase-server'
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string // branch id
-  }
+  }>
 }
 
 // GET /api/admin/branches/[id]/shifts - Get all shifts for a branch
-export async function GET(request: NextRequest, { params }: RouteParams) {
+export async function GET(request: NextRequest, context: RouteParams) {
   try {
-    // Await params before using
-    const { id } = await params
+    // Await params before using (Next.js 15 requires params to be a Promise)
+    const { id } = await context.params
     
     // Rate limiting
     const rateLimitResult = await authRateLimiter.checkLimit(request)
@@ -75,10 +75,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 }
 
 // POST /api/admin/branches/[id]/shifts - Create new shift for a branch
-export async function POST(request: NextRequest, { params }: RouteParams) {
+export async function POST(request: NextRequest, context: RouteParams) {
   try {
-    // Await params before using
-    const { id } = await params
+    // Await params before using (Next.js 15 requires params to be a Promise)
+    const { id } = await context.params
     
     // Rate limiting
     const rateLimitResult = await authRateLimiter.checkLimit(request)

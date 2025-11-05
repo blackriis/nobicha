@@ -116,13 +116,98 @@ export async function middleware(req: NextRequest) {
           })
         },
       },
+      global: {
+        // Custom fetch wrapper to handle network errors gracefully in Edge runtime
+        fetch: async (url, options = {}) => {
+          try {
+            // Use native fetch with error handling
+            const response = await fetch(url, options)
+            return response
+          } catch (error) {
+            // Handle network errors gracefully
+            const errorMessage = error instanceof Error ? error.message : String(error)
+            const isNetworkError = 
+              errorMessage.includes('fetch failed') ||
+              errorMessage.includes('Failed to fetch') ||
+              error instanceof TypeError ||
+              (error instanceof Error && error.name === 'TypeError')
+            
+            if (isNetworkError) {
+              console.warn('⚠️ Middleware: Network error in Supabase fetch:', {
+                url: typeof url === 'string' ? url : 'unknown',
+                error: errorMessage,
+                pathname,
+                timestamp: new Date().toISOString()
+              })
+              
+              // Return an error response that Supabase client will handle gracefully
+              // Status 401 will be treated as unauthenticated, which is the desired behavior
+              return new Response(
+                JSON.stringify({ 
+                  error: 'Network error',
+                  message: 'Failed to connect to authentication service'
+                }),
+                {
+                  status: 401,
+                  statusText: 'Unauthorized',
+                  headers: { 'Content-Type': 'application/json' },
+                }
+              )
+            }
+            
+            // Re-throw non-network errors
+            throw error
+          }
+        },
+      },
+      auth: {
+        // Disable auto refresh in middleware to prevent fetch errors
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      },
     }
   )
   
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser()
+  // Get user with comprehensive error handling for network issues
+  let user = null
+  let authError = null
+  
+  try {
+    const authResult = await supabase.auth.getUser()
+    user = authResult.data.user
+    authError = authResult.error
+  } catch (error) {
+    // Handle network errors (fetch failed) gracefully
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    
+    // Check if it's a network/fetch error
+    if (errorMessage.includes('fetch failed') || 
+        errorMessage.includes('Failed to fetch') ||
+        error instanceof TypeError) {
+      console.warn('⚠️ Middleware: Network error during auth check:', {
+        pathname,
+        error: errorMessage,
+        timestamp: new Date().toISOString()
+      })
+      
+      // Treat network errors as unauthenticated to allow fallback behavior
+      // This prevents the middleware from crashing and allows the app to continue
+      authError = {
+        message: 'Network error during authentication',
+        name: 'NetworkError',
+        status: 0
+      } as Error
+    } else {
+      // Re-throw unexpected errors
+      console.error('❌ Middleware: Unexpected auth error:', {
+        pathname,
+        error: errorMessage,
+        timestamp: new Date().toISOString()
+      })
+      throw error
+    }
+  }
   
   // Skip authentication for API routes - let the API handle auth internally
   if (pathname.startsWith('/api/')) {
@@ -167,11 +252,40 @@ export async function middleware(req: NextRequest) {
 
   // If user is authenticated, get their profile
   if (user) {
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .maybeSingle()
+    let profile = null
+    
+    try {
+      const profileResult = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle()
+      
+      profile = profileResult.data
+    } catch (error) {
+      // Handle network errors when fetching profile
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      
+      if (errorMessage.includes('fetch failed') || 
+          errorMessage.includes('Failed to fetch') ||
+          error instanceof TypeError) {
+        console.warn('⚠️ Middleware: Network error fetching user profile:', {
+          userId: user.id,
+          pathname,
+          error: errorMessage,
+          timestamp: new Date().toISOString()
+        })
+        // Continue without profile - will fallback to user_metadata
+      } else {
+        // Log unexpected errors but don't block the request
+        console.error('❌ Middleware: Error fetching user profile:', {
+          userId: user.id,
+          pathname,
+          error: errorMessage,
+          timestamp: new Date().toISOString()
+        })
+      }
+    }
 
     // Prefer role from DB; fallback to verified JWT user_metadata role if missing
     let userRole = (profile as { role: 'admin' | 'employee' } | null)?.role

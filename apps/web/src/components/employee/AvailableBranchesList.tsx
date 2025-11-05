@@ -42,7 +42,13 @@ export function AvailableBranchesList({ onCheckIn, refreshTrigger = 0 }: Availab
    setLoading(true)
    setError(null)
 
-   const response = await fetch('/api/employee/available-branches')
+   const { fetchWithErrorHandling } = await import('@/lib/fetch-utils')
+   
+   const response = await fetchWithErrorHandling('/api/employee/available-branches', {
+    timeout: 15000,
+    retries: 1
+   })
+   
    const result = await response.json()
 
    if (!response.ok) {
@@ -52,7 +58,10 @@ export function AvailableBranchesList({ onCheckIn, refreshTrigger = 0 }: Availab
    setAllBranches(result.data.all_branches || [])
   } catch (error) {
    console.error('Error loading initial data:', error)
-   setError(error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการดึงข้อมูล')
+   const errorMessage = error instanceof Error 
+    ? error.message 
+    : 'เกิดข้อผิดพลาดในการดึงข้อมูล'
+   setError(errorMessage)
   } finally {
    setLoading(false)
   }
@@ -71,7 +80,9 @@ export function AvailableBranchesList({ onCheckIn, refreshTrigger = 0 }: Availab
   navigator.geolocation.getCurrentPosition(
    async (position) => {
     try {
-     const response = await fetch('/api/employee/available-branches', {
+     const { fetchWithErrorHandling } = await import('@/lib/fetch-utils')
+     
+     const response = await fetchWithErrorHandling('/api/employee/available-branches', {
       method: 'POST',
       headers: {
        'Content-Type': 'application/json'
@@ -79,7 +90,9 @@ export function AvailableBranchesList({ onCheckIn, refreshTrigger = 0 }: Availab
       body: JSON.stringify({
        latitude: position.coords.latitude,
        longitude: position.coords.longitude
-      })
+      }),
+      timeout: 15000,
+      retries: 1
      })
 
      const result = await response.json()
@@ -92,7 +105,10 @@ export function AvailableBranchesList({ onCheckIn, refreshTrigger = 0 }: Availab
      setLocationPermission('granted')
     } catch (error) {
      console.error('Error loading nearby branches:', error)
-     setError(error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการดึงข้อมูล')
+     const errorMessage = error instanceof Error 
+      ? error.message 
+      : 'เกิดข้อผิดพลาดในการดึงข้อมูล'
+     setError(errorMessage)
     } finally {
      setLoading(false)
     }
