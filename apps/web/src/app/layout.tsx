@@ -5,6 +5,10 @@ import { AuthProvider } from "@/components/auth";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { Toaster } from "sonner";
 
+// Force all pages to use dynamic rendering to prevent prerender errors
+// with client-side providers (AuthProvider, ThemeProvider)
+export const dynamic = 'force-dynamic';
+
 const geistSans = Geist({
  variable: "--font-geist-sans",
  subsets: ["latin"],

@@ -18,12 +18,17 @@ const nextConfig: NextConfig = {
   turbopack: {
     resolveAlias: {
       '@employee-management/config': '../../packages/config',
-      '@employee-management/database': '../../packages/database', 
+      '@employee-management/database': '../../packages/database',
       '@employee-management/ui': '../../packages/ui',
     },
   },
   // Fix workspace root warning
   outputFileTracingRoot: path.join(__dirname, '../../'),
+  // Disable generation of static 404/500 pages to prevent prerender errors
+  // Vercel will handle error pages at runtime
+  generateBuildId: async () => {
+    return 'build-' + Date.now()
+  },
 };
 
 export default nextConfig;
