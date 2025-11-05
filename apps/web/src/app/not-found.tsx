@@ -1,46 +1,42 @@
 import Link from 'next/link'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: '404 - ไม่พบหน้า',
+  description: 'หน้าที่คุณกำลังมองหาไม่มีอยู่ในระบบ',
+}
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="max-w-md w-full bg-card rounded-lg p-6 text-center border border-border">
-        <div className="mb-4">
-          <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-muted">
-            <svg
-              className="h-6 w-6 text-muted-foreground"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
+    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f9fafb' }}>
+      <div className="max-w-md w-full rounded-lg p-8 text-center border" style={{ backgroundColor: 'white', borderColor: '#e5e7eb' }}>
+        <div className="mb-6">
+          <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full" style={{ backgroundColor: '#f3f4f6' }}>
+            <span className="text-4xl">😕</span>
           </div>
         </div>
         
-        <h1 className="text-2xl font-bold text-foreground mb-2">
+        <h1 className="text-3xl font-bold mb-3" style={{ color: '#111827' }}>
           404 - ไม่พบหน้า
         </h1>
         
-        <p className="text-muted-foreground mb-6">
+        <p className="mb-8" style={{ color: '#6b7280' }}>
           หน้าที่คุณกำลังมองหาไม่มีอยู่ในระบบ
         </p>
         
         <div className="space-y-3">
           <Link 
             href="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 w-full"
+            className="inline-flex items-center justify-center rounded-md px-6 py-3 text-sm font-medium w-full"
+            style={{ backgroundColor: '#3b82f6', color: 'white' }}
           >
             กลับไปหน้าแรก
           </Link>
           
           <Link 
             href="/login/employee"
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground w-full"
+            className="inline-flex items-center justify-center rounded-md border px-6 py-3 text-sm font-medium w-full"
+            style={{ borderColor: '#d1d5db', backgroundColor: 'white', color: '#374151' }}
           >
             เข้าสู่ระบบ
           </Link>
