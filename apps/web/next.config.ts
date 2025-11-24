@@ -41,6 +41,8 @@ const nextConfig: NextConfig = {
       './BlobDownloadBuilder': false, // Ignore this in @supabase/storage-js
       './ka.js': false, // Ignore failing zod locales
       './km.js': false, // Ignore failing zod locales
+      './lt.js': false, // Ignore failing zod locales
+      './uk.js': false, // Ignore failing zod locales
     };
 
     // Force react-is resolution to avoid "Module not found" error
