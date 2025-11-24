@@ -16,7 +16,30 @@ const nextConfig: NextConfig = {
     // !! WARN !!
     ignoreBuildErrors: true,
   },
-  transpilePackages: ['@employee-management/config', '@employee-management/database', '@employee-management/ui'],
+  transpilePackages: [
+    '@employee-management/config',
+    '@employee-management/database',
+    '@employee-management/ui',
+    '@supabase/auth-js',
+    '@supabase/storage-js',
+    '@supabase/functions-js',
+    '@supabase/postgrest-js',
+    '@supabase/realtime-js',
+    '@supabase/ssr',
+    '@supabase/supabase-js'
+  ],
+  webpack: (config) => {
+    // Ignore specific modules that cause issues in Supabase builds
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      // Fix for missing optional dependencies in @supabase/auth-js and @supabase/storage-js
+      './lib/web3/ethereum': false,
+      './lib/webauthn': false,
+      './packages/StorageAnalyticsClient': false,
+      './lib/vectors': false,
+    };
+    return config;
+  },
   turbopack: {
     resolveAlias: {
       '@employee-management/config': '../../packages/config',
