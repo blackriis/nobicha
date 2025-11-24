@@ -33,8 +33,8 @@ const nextConfig: NextConfig = {
     config.resolve.alias = {
       ...config.resolve.alias,
       // Fix for missing optional dependencies in @supabase/auth-js and @supabase/storage-js
-      './lib/web3/ethereum': false,
-      './lib/webauthn': false,
+      // './lib/web3/ethereum': false, // Removed as it causes runtime errors
+      // './lib/webauthn': false, // Removed as it causes runtime errors
       './packages/StorageAnalyticsClient': false,
       './lib/vectors': false,
       // Additional fixes for Vercel build errors
@@ -47,9 +47,10 @@ const nextConfig: NextConfig = {
 
     // Force react-is resolution to avoid "Module not found" error
     try {
-      config.resolve.alias['react-is'] = path.dirname(require.resolve('react-is/package.json'));
+      config.resolve.alias['react-is'] = require.resolve('react-is');
     } catch (e) {
-      // Ignore if react-is cannot be resolved
+      // If standard resolution fails, try manual path assumption based on Vercel environment
+      config.resolve.alias['react-is'] = path.resolve(__dirname, '../../node_modules/react-is');
     }
 
     return config;
