@@ -1,5 +1,8 @@
 'use client';
 
+// Force dynamic rendering to prevent prerender errors
+export const dynamic = 'force-dynamic';
+
 // Global error component for catching errors in root layout
 export default function GlobalError({
   error,
@@ -37,4 +40,3 @@ export default function GlobalError({
     </html>
   );
 }
-
