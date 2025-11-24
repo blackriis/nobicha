@@ -37,7 +37,19 @@ const nextConfig: NextConfig = {
       './lib/webauthn': false,
       './packages/StorageAnalyticsClient': false,
       './lib/vectors': false,
+      // Additional fixes for Vercel build errors
+      './BlobDownloadBuilder': false, // Ignore this in @supabase/storage-js
+      './ka.js': false, // Ignore failing zod locales
+      './km.js': false, // Ignore failing zod locales
     };
+
+    // Force react-is resolution to avoid "Module not found" error
+    try {
+      config.resolve.alias['react-is'] = path.dirname(require.resolve('react-is/package.json'));
+    } catch (e) {
+      // Ignore if react-is cannot be resolved
+    }
+
     return config;
   },
   turbopack: {
