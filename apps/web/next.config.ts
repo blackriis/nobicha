@@ -25,7 +25,13 @@ const nextConfig: NextConfig = {
   // Fix workspace root warning
   outputFileTracingRoot: path.join(__dirname, '../../'),
   // Disable generation of static 404/500 pages to prevent prerender errors
-  // Vercel will handle error pages at runtime
+  // with client-side providers during build time
+  experimental: {
+    // Skip static optimization for error pages
+    skipTrailingSlashRedirect: true,
+    skipMiddlewareUrlNormalize: true,
+  },
+  // Force error pages to be rendered at runtime, not during build
   generateBuildId: async () => {
     return 'build-' + Date.now()
   },
