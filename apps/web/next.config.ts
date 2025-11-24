@@ -33,8 +33,9 @@ const nextConfig: NextConfig = {
     config.resolve.alias = {
       ...config.resolve.alias,
       // Fix for missing optional dependencies in @supabase/auth-js and @supabase/storage-js
-      // './lib/web3/ethereum': false, // Removed as it causes runtime errors
-      // './lib/webauthn': false, // Removed as it causes runtime errors
+      './lib/web3/ethereum': false, 
+      // Point webauthn to a mock file instead of ignoring it completely to avoid "WebAuthnApi is not a constructor" error
+      './lib/webauthn': path.resolve(__dirname, 'src/lib/supabase-mocks.js'),
       './packages/StorageAnalyticsClient': false,
       './lib/vectors': false,
       // Additional fixes for Vercel build errors
