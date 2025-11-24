@@ -1,13 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { AuthProvider } from "@/components/auth";
-import { ThemeProvider } from "@/components/ui/theme-provider";
-import { Toaster } from "sonner";
-
-// Force all pages to use dynamic rendering to prevent prerender errors
-// with client-side providers (AuthProvider, ThemeProvider)
-export const dynamic = 'force-dynamic';
+import { Providers } from "./providers";
 
 const geistSans = Geist({
  variable: "--font-geist-sans",
@@ -35,18 +29,7 @@ export default function RootLayout({
     className={`${geistSans.variable} ${geistMono.variable} antialiased`}
     suppressHydrationWarning={true}
    >
-    <AuthProvider>
-     <ThemeProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      disableTransitionOnChange
-      storageKey="theme"
-     >
-      {children}
-     </ThemeProvider>
-    </AuthProvider>
-    <Toaster position="top-right" richColors />
+    <Providers>{children}</Providers>
    </body>
   </html>
  );
