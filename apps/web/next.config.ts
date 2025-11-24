@@ -48,10 +48,16 @@ const nextConfig: NextConfig = {
 
     // Force react-is resolution to avoid "Module not found" error
     try {
-      config.resolve.alias['react-is'] = require.resolve('react-is');
-    } catch (e) {
-      // If standard resolution fails, try manual path assumption based on Vercel environment
+      // Using require.resolve to find the exact path to the file
+      // This helps in Vercel's monorepo environment
       config.resolve.alias['react-is'] = path.resolve(__dirname, '../../node_modules/react-is');
+    } catch (e) {
+      // Ignore if react-is cannot be resolved
+    }
+
+    // Add fallback for react-is if it's not found in root node_modules
+    if (!config.resolve.alias['react-is']) {
+       config.resolve.alias['react-is'] = path.resolve(__dirname, 'node_modules/react-is');
     }
 
     return config;
