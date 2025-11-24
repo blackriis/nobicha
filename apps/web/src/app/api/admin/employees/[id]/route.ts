@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { authRateLimiter } from '@/lib/rate-limit'
+import { createClient, createSupabaseServerClient } from '@/lib/supabase-server'
 import { isValidUUID } from '@/lib/validation'
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
 export async function GET(
   request: NextRequest,
@@ -22,31 +18,67 @@ export async function GET(
       )
     }
 
-    // Check authentication and admin role
+    // Rate limiting
+    const rateLimitResult = await authRateLimiter.checkLimit(request)
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429 }
+      )
+    }
+
+    // Authentication check - support both Bearer token and cookie-based auth
     const authHeader = request.headers.get('authorization')
-    if (!authHeader) {
-      return NextResponse.json({ error: 'ไม่พบการยืนยันตัวตน' }, { status: 401 })
+    let user = null
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      // Use bearer token authentication (for backward compatibility)
+      const token = authHeader.replace('Bearer ', '')
+      const tempSupabase = await createSupabaseServerClient()
+      const { data: userData, error: tokenError } = await tempSupabase.auth.getUser(token)
+      if (tokenError || !userData.user) {
+        return NextResponse.json(
+          { error: 'ไม่พบการยืนยันตัวตน' },
+          { status: 401 }
+        )
+      }
+      user = userData.user
+    } else {
+      // Fallback to cookie-based auth (preferred for production)
+      const supabase = await createClient()
+      const { data: { user: cookieUser }, error: authError } = await supabase.auth.getUser()
+      if (authError || !cookieUser) {
+        return NextResponse.json(
+          { error: 'ไม่พบการยืนยันตัวตน' },
+          { status: 401 }
+        )
+      }
+      user = cookieUser
     }
 
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'การยืนยันตัวตนไม่ถูกต้อง' }, { status: 401 })
+    if (!user) {
+      return NextResponse.json(
+        { error: 'ไม่พบการยืนยันตัวตน' },
+        { status: 401 }
+      )
     }
 
-    // Check if user is admin
-    const { data: userProfile } = await supabase
+    // Get user profile and check role using service role client to bypass RLS
+    const adminClient = await createSupabaseServerClient()
+    const { data: userProfile } = await adminClient
       .from('users')
       .select('role')
       .eq('id', user.id)
       .single()
 
-    if (userProfile?.role !== 'admin') {
-      return NextResponse.json({ error: 'ไม่มีสิทธิ์เข้าถึงข้อมูลนี้' }, { status: 403 })
+    if (!userProfile || userProfile.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'ไม่มีสิทธิ์เข้าถึงข้อมูลนี้' },
+        { status: 403 }
+      )
     }
 
-    const { data: employee, error } = await supabase
+    const { data: employee, error } = await adminClient
       .from('users')
       .select(`
         id,
@@ -118,28 +150,64 @@ export async function PUT(
       )
     }
 
-    // Check authentication and admin role
+    // Rate limiting
+    const rateLimitResult = await authRateLimiter.checkLimit(request)
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429 }
+      )
+    }
+
+    // Authentication check - support both Bearer token and cookie-based auth
     const authHeader = request.headers.get('authorization')
-    if (!authHeader) {
-      return NextResponse.json({ error: 'ไม่พบการยืนยันตัวตน' }, { status: 401 })
+    let user = null
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      // Use bearer token authentication (for backward compatibility)
+      const token = authHeader.replace('Bearer ', '')
+      const tempSupabase = await createSupabaseServerClient()
+      const { data: userData, error: tokenError } = await tempSupabase.auth.getUser(token)
+      if (tokenError || !userData.user) {
+        return NextResponse.json(
+          { error: 'ไม่พบการยืนยันตัวตน' },
+          { status: 401 }
+        )
+      }
+      user = userData.user
+    } else {
+      // Fallback to cookie-based auth (preferred for production)
+      const supabase = await createClient()
+      const { data: { user: cookieUser }, error: authError } = await supabase.auth.getUser()
+      if (authError || !cookieUser) {
+        return NextResponse.json(
+          { error: 'ไม่พบการยืนยันตัวตน' },
+          { status: 401 }
+        )
+      }
+      user = cookieUser
     }
 
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'การยืนยันตัวตนไม่ถูกต้อง' }, { status: 401 })
+    if (!user) {
+      return NextResponse.json(
+        { error: 'ไม่พบการยืนยันตัวตน' },
+        { status: 401 }
+      )
     }
 
-    // Check if user is admin
-    const { data: userProfile } = await supabase
+    // Get user profile and check role using service role client to bypass RLS
+    const adminClient = await createSupabaseServerClient()
+    const { data: userProfile } = await adminClient
       .from('users')
       .select('role')
       .eq('id', user.id)
       .single()
 
-    if (userProfile?.role !== 'admin') {
-      return NextResponse.json({ error: 'ไม่มีสิทธิ์เข้าถึงข้อมูลนี้' }, { status: 403 })
+    if (!userProfile || userProfile.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'ไม่มีสิทธิ์เข้าถึงข้อมูลนี้' },
+        { status: 403 }
+      )
     }
 
     // Parse request body
@@ -154,7 +222,7 @@ export async function PUT(
     }
 
     // Check if email already exists (excluding current employee)
-    const { data: existingUser } = await supabase
+    const { data: existingUser } = await adminClient
       .from('users')
       .select('id')
       .eq('email', updateData.email)
@@ -170,7 +238,7 @@ export async function PUT(
 
     // Check if branch exists (if branch_id is provided)
     if (updateData.branch_id) {
-      const { data: branch } = await supabase
+      const { data: branch } = await adminClient
         .from('branches')
         .select('id')
         .eq('id', updateData.branch_id)
@@ -207,7 +275,7 @@ export async function PUT(
     }
 
     // Update employee in database
-    const { data: updatedEmployee, error: updateError } = await supabase
+    const { data: updatedEmployee, error: updateError } = await adminClient
       .from('users')
       .update(updateFields)
       .eq('id', employeeId)
