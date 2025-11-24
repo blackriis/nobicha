@@ -53,8 +53,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
      setUser(null)
     }
    } catch (error) {
-    // Handle AuthSessionMissingError gracefully
-    if (error.message?.includes('Auth session missing') || error.name === 'AuthSessionMissingError') {
+    // Handle invalid refresh token errors
+    if (error.message?.includes('Invalid Refresh Token') || 
+        error.message?.includes('Refresh Token Not Found') ||
+        error.message?.includes('refresh_token_not_found')) {
+     console.warn('Invalid refresh token during initialization - clearing session')
+     setUser(null)
+     setSession(null)
+     // Clear session
+     await auth.signOut().catch(() => {})
+    } else if (error.message?.includes('Auth session missing') || error.name === 'AuthSessionMissingError') {
      console.warn('Auth session missing during initialization - user will need to login again')
      setUser(null)
      setSession(null)
@@ -85,8 +93,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const { user: authenticatedUser } = await auth.getUser()
       setUser(authenticatedUser as AuthUser || null)
      } catch (error) {
-      // Handle AuthSessionMissingError gracefully during state changes
-      if (error.message?.includes('Auth session missing') || error.name === 'AuthSessionMissingError') {
+      // Handle invalid refresh token errors
+      if (error.message?.includes('Invalid Refresh Token') || 
+          error.message?.includes('Refresh Token Not Found') ||
+          error.message?.includes('refresh_token_not_found')) {
+       console.warn('Invalid refresh token during state change - forcing logout')
+       setUser(null)
+       setSession(null)
+       // Clear session
+       await auth.signOut().catch(() => {})
+      } else if (error.message?.includes('Auth session missing') || error.name === 'AuthSessionMissingError') {
        console.warn('Auth session missing during state change - forcing logout')
        setUser(null)
        setSession(null)

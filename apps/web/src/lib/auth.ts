@@ -185,6 +185,15 @@ export const auth = {
       const supabase = createClientComponentClient()
       const { data, error } = await supabase.auth.getSession()
       if (error) {
+        // Handle invalid refresh token errors
+        if (error.message?.includes('Invalid Refresh Token') || 
+            error.message?.includes('Refresh Token Not Found') ||
+            error.message?.includes('refresh_token_not_found')) {
+          console.warn('Invalid refresh token in getSession - clearing session')
+          // Clear session
+          await supabase.auth.signOut().catch(() => {})
+          return { session: null }
+        }
         // Handle AuthSessionMissingError gracefully
         if (error.message?.includes('Auth session missing') || error.name === 'AuthSessionMissingError') {
           console.warn('Auth session missing in getSession - returning null session')
@@ -210,6 +219,15 @@ export const auth = {
       const { data, error } = await supabase.auth.getUser()
       
       if (error) {
+        // Handle invalid refresh token errors
+        if (error.message?.includes('Invalid Refresh Token') || 
+            error.message?.includes('Refresh Token Not Found') ||
+            error.message?.includes('refresh_token_not_found')) {
+          console.warn('Invalid refresh token in getUser - clearing session')
+          // Clear session
+          await supabase.auth.signOut().catch(() => {})
+          return { user: null }
+        }
         // Handle AuthSessionMissingError gracefully
         if (error.message?.includes('Auth session missing') || error.name === 'AuthSessionMissingError') {
           console.warn('Auth session missing in getUser - returning null user')
