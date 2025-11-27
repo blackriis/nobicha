@@ -34,30 +34,49 @@ export class CameraService {
         throw new Error('DEVICE_NOT_SUPPORTED');
       }
 
+      // Detect iOS
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
       // Try with ideal constraints first - Portrait orientation for selfies
+      // iOS requires specific aspect ratio to force portrait mode
       let constraints: MediaStreamConstraints = {
         video: {
           facingMode,
+          aspectRatio: { ideal: 0.5625 }, // 9:16 portrait ratio (inverse of 16:9)
           width: { ideal: 720, max: 1080 },
           height: { ideal: 1280, max: 1920 }
         },
         audio: false
       };
 
+      // iOS-specific constraints for better portrait support
+      if (isIOS) {
+        constraints = {
+          video: {
+            facingMode,
+            aspectRatio: 0.5625, // 9:16 exact ratio for iOS
+            width: { ideal: 720 },
+            height: { ideal: 1280 }
+          },
+          audio: false
+        };
+      }
+
       try {
         console.log('Attempting camera access with ideal constraints:', constraints);
         this.stream = await navigator.mediaDevices.getUserMedia(constraints);
-        
+
         // Wait for tracks to be ready with longer timeout
         await this.waitForTracksReady(this.stream, 3000);
         return this.stream;
       } catch (idealError) {
         console.warn('Ideal constraints failed, trying fallback:', idealError);
-        
+
         // Fallback to basic constraints - Portrait orientation
         constraints = {
           video: {
             facingMode,
+            aspectRatio: { ideal: 0.75 }, // Try 3:4 portrait as fallback
             width: { min: 480 },
             height: { min: 640 }
           },
@@ -66,14 +85,14 @@ export class CameraService {
 
         console.log('Attempting camera access with fallback constraints:', constraints);
         this.stream = await navigator.mediaDevices.getUserMedia(constraints);
-        
+
         // Wait for tracks to be ready with longer timeout
         await this.waitForTracksReady(this.stream, 3000);
         return this.stream;
       }
     } catch (error) {
       console.error('Camera access error:', error);
-      
+
       if (error instanceof Error) {
         if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
           throw new Error('PERMISSION_DENIED');

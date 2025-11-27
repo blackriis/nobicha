@@ -339,12 +339,14 @@ export function SelfieCapture({
          muted
          style={{
           display: 'block',
-          maxWidth: '280px',
-          maxHeight: '420px',
+          width: '280px',
+          height: '420px',
           backgroundColor: '#1f2937',
           borderRadius: '140px',
-          objectFit: 'contain', // เปลี่ยนจาก 'cover' เป็น 'contain' เพื่อไม่ให้ยืด
-          margin: '0 auto'
+          objectFit: 'cover',
+          margin: '0 auto',
+          transform: 'rotateY(0deg)', // ป้องกัน mirror effect บน iOS
+          WebkitTransform: 'rotateY(0deg)'
          }}
          className="border-4 border-blue-300"
          onCanPlay={() => {
