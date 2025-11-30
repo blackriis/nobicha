@@ -16,6 +16,9 @@ export interface AuthValidationResult extends ValidationResult {
 // Email validation regex (RFC 5322 compliant)
 const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
 
+// Username validation regex (alphanumeric, underscore, hyphen)
+const USERNAME_REGEX = /^[a-zA-Z0-9_-]+$/
+
 // Password validation rules
 const PASSWORD_MIN_LENGTH = 8
 const PASSWORD_REGEX = {
@@ -37,31 +40,65 @@ function sanitizeString(input: string): string {
 // Email validation
 export function validateEmail(email: string): ValidationResult {
   const errors: string[] = []
-  
+
   if (!email) {
     errors.push('Email is required')
     return { valid: false, errors }
   }
-  
+
   const sanitizedEmail = sanitizeEmail(email)
-  
+
   if (sanitizedEmail.length > 254) {
     errors.push('Email is too long')
   }
-  
+
   if (!EMAIL_REGEX.test(sanitizedEmail)) {
     errors.push('Invalid email format')
   }
-  
+
   // Check for potentially dangerous patterns
   if (sanitizedEmail.includes('..') || sanitizedEmail.startsWith('.') || sanitizedEmail.endsWith('.')) {
     errors.push('Invalid email format')
   }
-  
+
   return {
     valid: errors.length === 0,
     errors
   }
+}
+
+// Username validation
+export function validateUsername(username: string): ValidationResult {
+  const errors: string[] = []
+
+  if (!username) {
+    errors.push('Username is required')
+    return { valid: false, errors }
+  }
+
+  const sanitized = username.trim()
+
+  if (sanitized.length < 3) {
+    errors.push('Username must be at least 3 characters long')
+  }
+
+  if (sanitized.length > 50) {
+    errors.push('Username is too long (maximum 50 characters)')
+  }
+
+  if (!USERNAME_REGEX.test(sanitized)) {
+    errors.push('Username can only contain letters, numbers, underscores, and hyphens')
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors
+  }
+}
+
+// Check if input is email or username
+export function isEmail(input: string): boolean {
+  return EMAIL_REGEX.test(input.trim().toLowerCase())
 }
 
 // Password validation
@@ -160,20 +197,63 @@ export function validateUserRole(role: string): ValidationResult {
   }
 }
 
-// Comprehensive auth validation
-export function validateSignInData(email: string, password: string): AuthValidationResult {
-  const emailValidation = validateEmail(email)
+// Comprehensive auth validation (accepts both email and username)
+export function validateSignInData(identifier: string, password: string): AuthValidationResult {
+  const errors: string[] = []
+
+  // Check if identifier is provided
+  if (!identifier || !identifier.trim()) {
+    errors.push('Username or email is required')
+  }
+
+  // Validate password
   const passwordValidation = validatePassword(password)
-  
-  const errors = [...emailValidation.errors, ...passwordValidation.errors]
-  const valid = errors.length === 0
-  
+  errors.push(...passwordValidation.errors)
+
+  // If there are errors, return early
+  if (errors.length > 0) {
+    return {
+      valid: false,
+      errors,
+      sanitized: undefined
+    }
+  }
+
+  // Validate as email or username
+  const trimmedIdentifier = identifier.trim()
+  let sanitizedEmail: string
+
+  if (isEmail(trimmedIdentifier)) {
+    // It's an email - validate and sanitize
+    const emailValidation = validateEmail(trimmedIdentifier)
+    if (!emailValidation.valid) {
+      return {
+        valid: false,
+        errors: [...errors, ...emailValidation.errors],
+        sanitized: undefined
+      }
+    }
+    sanitizedEmail = sanitizeEmail(trimmedIdentifier)
+  } else {
+    // It's a username - validate format
+    const usernameValidation = validateUsername(trimmedIdentifier)
+    if (!usernameValidation.valid) {
+      return {
+        valid: false,
+        errors: [...errors, ...usernameValidation.errors],
+        sanitized: undefined
+      }
+    }
+    // Store username as-is (will be looked up to get email later)
+    sanitizedEmail = trimmedIdentifier.toLowerCase()
+  }
+
   return {
-    valid,
-    errors,
-    sanitized: valid ? {
-      email: sanitizeEmail(email)
-    } : undefined
+    valid: true,
+    errors: [],
+    sanitized: {
+      email: sanitizedEmail
+    }
   }
 }
 

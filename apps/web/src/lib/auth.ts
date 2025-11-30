@@ -1,7 +1,7 @@
 import { createClientComponentClient } from './supabase'
 import type { User } from '@supabase/supabase-js'
 import type { Database } from '@employee-management/database'
-import { validateSignInData, validateSignUpData } from './validation'
+import { validateSignInData, validateSignUpData, isEmail } from './validation'
 import { userCache } from './user-cache'
 import { config } from '@employee-management/config'
 
@@ -14,19 +14,19 @@ export interface AuthUser extends User {
 
 // Auth utility functions
 export const auth = {
-  // Sign in with email and password
-  async signIn(email: string, password: string) {
-    // Validate input
-    const validation = validateSignInData(email, password)
+  // Sign in with email or username and password
+  async signIn(identifier: string, password: string) {
+    // Validate input (accepts both email and username)
+    const validation = validateSignInData(identifier, password)
     if (!validation.valid) {
       throw new Error(`Validation failed: ${validation.errors.join(', ')}`)
     }
-    
+
     // Check Supabase configuration before attempting sign in
     try {
       const url = config.supabase.url
       const anonKey = config.supabase.anonKey
-      
+
       if (!url || url.includes('placeholder') || !anonKey || anonKey.includes('placeholder')) {
         throw new Error('Supabase configuration is missing or invalid. Please check your environment variables.')
       }
@@ -34,20 +34,58 @@ export const auth = {
       console.error('❌ Supabase configuration error:', configError)
       throw new Error('ระบบยังไม่ได้ตั้งค่า Supabase กรุณาตรวจสอบการตั้งค่าและ restart server')
     }
-    
+
     try {
+      // Determine if input is email or username
+      const sanitizedIdentifier = validation.sanitized!.email
+      let emailForLogin = sanitizedIdentifier
+
+      // If it's not an email format, lookup the username to get email
+      if (!isEmail(sanitizedIdentifier)) {
+        console.log('🔍 Input is username, looking up email...')
+
+        try {
+          const lookupResponse = await fetch('/api/auth/lookup-username', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ username: sanitizedIdentifier }),
+          })
+
+          if (!lookupResponse.ok) {
+            const errorData = await lookupResponse.json()
+            console.warn('Username lookup failed:', errorData)
+            throw new Error('Invalid login credentials')
+          }
+
+          const lookupData = await lookupResponse.json()
+
+          if (!lookupData.success || !lookupData.email) {
+            throw new Error('Invalid login credentials')
+          }
+
+          emailForLogin = lookupData.email
+          console.log('✅ Username lookup successful')
+        } catch (lookupError) {
+          console.error('❌ Username lookup error:', lookupError)
+          throw new Error('Invalid login credentials')
+        }
+      }
+
       const supabase = createClientComponentClient()
 
       // Add better error handling for network issues
       console.log('🔐 Attempting sign in with Supabase...', {
-        email: validation.sanitized!.email,
+        identifier: sanitizedIdentifier,
+        email: emailForLogin,
         supabaseUrl: config.supabase.url,
         hasKey: !!config.supabase.anonKey
       })
 
       // Wrap signInWithPassword with timeout and better error handling
       const signInPromise = supabase.auth.signInWithPassword({
-        email: validation.sanitized!.email,
+        email: emailForLogin,
         password,
       })
 

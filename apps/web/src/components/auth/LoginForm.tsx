@@ -17,11 +17,11 @@ interface LoginFormProps {
 }
 
 export function LoginForm({ role, title, description }: LoginFormProps) {
- const [email, setEmail] = useState('')
+ const [identifier, setIdentifier] = useState('')
  const [password, setPassword] = useState('')
  const [loading, setLoading] = useState(false)
  const [error, setError] = useState('')
- 
+
  const { signIn } = useAuth()
  const router = useRouter()
  const searchParams = useSearchParams()
@@ -67,7 +67,7 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
   setLoading(true)
 
   try {
-   await signIn(email, password)
+   await signIn(identifier, password)
    
    // Use saved redirect path if available, otherwise use role-based default
    const finalRedirectUrl = redirectPath && redirectPath.startsWith('/') 
@@ -116,7 +116,7 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
     }
     // Auth errors
     else if (errorMsg.includes('invalid login credentials') || errorMsg.includes('invalid credentials')) {
-     errorMessage = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
+     errorMessage = 'Username, อีเมล หรือรหัสผ่านไม่ถูกต้อง'
     }
     // Rate limit errors
     else if (errorMsg.includes('too many requests') || errorMsg.includes('rate limit')) {
@@ -139,13 +139,7 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
  }
 
  return (
-  <div className="min-h-screen flex items-center justify-center bg-background relative">
-   {/* Theme Toggle Button - Top Right */}
-   <div className="absolute top-4 right-4">
-    <ModeToggle />
-   </div>
-   
-   <Card className="w-full max-w-md">
+   <Card className="w-full">
     <CardHeader className="space-y-1">
      <CardTitle className="text-2xl font-bold text-center">
       {title}
@@ -157,17 +151,18 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
     <CardContent>
      <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-       <Label htmlFor="email">อีเมล</Label>
+       <Label htmlFor="identifier">Username หรืออีเมล</Label>
        <Input
-        id="email"
-        data-testid="email-input"
-        type="email"
-        placeholder="กรุณากรอกอีเมล"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
+        id="identifier"
+        data-testid="identifier-input"
+        type="text"
+        placeholder="กรุณากรอก username หรืออีเมล"
+        value={identifier}
+        onChange={(e) => setIdentifier(e.target.value)}
         required
         disabled={loading}
         className="w-full"
+        autoComplete="username"
        />
       </div>
       
@@ -192,10 +187,10 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
        </div>
       )}
 
-      <Button 
-       type="submit" 
+      <Button
+       type="submit"
        data-testid="login-button"
-       disabled={loading || !email || !password}
+       disabled={loading || !identifier || !password}
        className="w-full"
       >
        {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
@@ -212,6 +207,5 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
      </div>
     </CardContent>
    </Card>
-  </div>
  )
 }
