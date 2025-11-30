@@ -2,8 +2,15 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  // Add custom header to skip static optimization for error pages
   const response = NextResponse.next()
+  
+  // เพิ่ม CORS headers สำหรับ API routes (Next.js 15.5.2 + Turbopack compatibility)
+  if (request.nextUrl.pathname.startsWith('/api')) {
+    response.headers.set('Access-Control-Allow-Origin', '*')
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH')
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
+    response.headers.set('Access-Control-Allow-Credentials', 'true')
+  }
   
   // Check if it's an error page request
   if (request.nextUrl.pathname === '/404' || request.nextUrl.pathname === '/_error') {

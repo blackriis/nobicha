@@ -24,15 +24,15 @@ export function LogoutButton({
 
  const handleLogout = async () => {
   setLoading(true)
-  
+
   try {
    await signOut()
-   // Redirect to login page after successful logout
-   router.push('/login/employee')
+   // Redirect to main login page with tabs after successful logout
+   router.push('/login')
   } catch (error: unknown) {
    console.error('Logout error:', error)
    // Still redirect even if logout fails (to handle session cleanup)
-   router.push('/login/employee')
+   router.push('/login')
   } finally {
    setLoading(false)
   }

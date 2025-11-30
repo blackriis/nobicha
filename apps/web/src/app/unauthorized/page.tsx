@@ -39,14 +39,8 @@ export default function UnauthorizedPage() {
     
     <div className="space-y-3">
      <Button asChild className="w-full">
-      <Link href="/login/employee">
-       เข้าสู่ระบบพนักงาน
-      </Link>
-     </Button>
-     
-     <Button variant="outline" asChild className="w-full">
-      <Link href="/login/admin">
-       เข้าสู่ระบบผู้ดูแลระบบ
+      <Link href="/login">
+       กลับไปหน้าเข้าสู่ระบบ
       </Link>
      </Button>
     </div>
