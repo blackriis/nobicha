@@ -100,8 +100,8 @@ export async function GET(
 
     console.log('Time entry found:', timeEntryCheck)
 
-    // Get time entry detail with all related data
-    const { data: timeEntry, error } = await supabase
+    // Get time entry detail (without branches join to avoid schema cache issues)
+    const { data: timeEntry, error: timeEntryError } = await supabase
       .from('time_entries')
       .select(`
         id,
@@ -115,21 +115,15 @@ export async function GET(
         total_hours,
         notes,
         created_at,
-        branches!time_entries_branch_id_fkey (
-          id,
-          name,
-          address,
-          latitude,
-          longitude
-        )
+        selfie_url
       `)
       .eq('id', timeEntryId)
       .single()
 
-    if (error) {
-      console.error('Time entry detail fetch error:', error)
+    if (timeEntryError) {
+      console.error('Time entry detail fetch error:', timeEntryError)
       return NextResponse.json(
-        { error: 'Failed to fetch time entry detail', details: error.message },
+        { error: 'Failed to fetch time entry detail', details: timeEntryError.message },
         { status: 500 }
       )
     }
@@ -149,6 +143,25 @@ export async function GET(
       )
     }
 
+    // Fetch branch data separately to avoid RLS and schema cache issues
+    let branch = null
+    if (timeEntry.branch_id) {
+      console.log('Fetching branch data for branch:', timeEntry.branch_id)
+      const { data: branchData, error: branchError } = await supabase
+        .from('branches')
+        .select('id, name, address, latitude, longitude')
+        .eq('id', timeEntry.branch_id)
+        .single()
+
+      if (branchError) {
+        console.error('Branch query error:', branchError)
+        // Continue without branch data rather than failing
+      } else {
+        branch = branchData
+        console.log('Branch data fetched:', branch?.name)
+      }
+    }
+
     // Transform data to match TimeEntryDetail interface
     const timeEntryDetail: TimeEntryDetail = {
       id: timeEntry.id,
@@ -163,23 +176,23 @@ export async function GET(
       selfieUrl: timeEntry.selfie_url,
       notes: timeEntry.notes,
       createdAt: timeEntry.created_at,
-      branch: timeEntry.branches ? {
-        id: timeEntry.branches.id,
-        name: timeEntry.branches.name,
-        address: timeEntry.branches.address,
-        latitude: timeEntry.branches.latitude,
-        longitude: timeEntry.branches.longitude
+      branch: branch ? {
+        id: branch.id,
+        name: branch.name,
+        address: branch.address,
+        latitude: branch.latitude,
+        longitude: branch.longitude
       } : undefined,
       // Add mock data for fields that might not exist in the current schema
       checkInLocation: {
-        latitude: timeEntry.branches?.latitude || 0,
-        longitude: timeEntry.branches?.longitude || 0,
-        address: timeEntry.branches?.address || 'ไม่ระบุตำแหน่ง'
+        latitude: branch?.latitude || 0,
+        longitude: branch?.longitude || 0,
+        address: branch?.address || 'ไม่ระบุตำแหน่ง'
       },
       checkOutLocation: timeEntry.check_out_time ? {
-        latitude: timeEntry.branches?.latitude || 0,
-        longitude: timeEntry.branches?.longitude || 0,
-        address: timeEntry.branches?.address || 'ไม่ระบุตำแหน่ง'
+        latitude: branch?.latitude || 0,
+        longitude: branch?.longitude || 0,
+        address: branch?.address || 'ไม่ระบุตำแหน่ง'
       } : undefined,
       materialUsage: [] // Empty array for now
     }
