@@ -3,7 +3,13 @@
  * สำหรับการทดสอบระบบ Employee Management System
  */
 
-const { createClient } = require('@supabase/supabase-js')
+import { createClient } from '@supabase/supabase-js'
+import dotenv from 'dotenv'
+
+// Load environment variables
+dotenv.config({ path: './apps/web/.env.local' })
+dotenv.config({ path: './.env.local' })
+dotenv.config()
 
 // Supabase configuration (จะต้องตั้งค่าผ่าน environment variables)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -200,9 +206,13 @@ async function createTestUser(userData) {
       }
     }
 
+    // Generate username from email (before @ symbol)
+    const username = userData.email.split('@')[0]
+
     // Update user profile in users table (in case trigger doesn't work)
     const profileData = {
       email: userData.email,
+      username: username,
       full_name: userData.fullName,
       role: userData.role,
       branch_id: userData.branchId,

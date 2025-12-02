@@ -71,13 +71,14 @@ export async function GET(
       .eq('id', user.id)
       .single()
 
-    if (!userProfile || userProfile.role !== 'admin') {
+    if (!userProfile || (userProfile as any).role !== 'admin') {
       return NextResponse.json(
         { error: 'ไม่มีสิทธิ์เข้าถึงข้อมูลนี้' },
         { status: 403 }
       )
     }
 
+    // Fetch employee data first
     const { data: employee, error } = await adminClient
       .from('users')
       .select(`
@@ -90,11 +91,23 @@ export async function GET(
         phone_number,
         hire_date,
         is_active,
-        created_at,
-        branches:branch_id(id,name,address)
+        hourly_rate,
+        daily_rate,
+        created_at
       `)
       .eq('id', employeeId)
       .single()
+
+    console.log('GET employee query result:', {
+      employeeId,
+      hasError: !!error,
+      hasEmployee: !!employee,
+      error: error ? {
+        message: error.message,
+        code: error.code,
+        details: error.details
+      } : null
+    })
 
     if (error) {
       console.error('Get employee by ID error (API):', {
@@ -104,14 +117,14 @@ export async function GET(
         hint: error?.hint || 'No hint',
         employeeId
       })
-      
+
       if (error.code === 'PGRST116') {
         return NextResponse.json(
           { error: 'Employee not found' },
           { status: 404 }
         )
       }
-      
+
       return NextResponse.json(
         { error: 'Failed to fetch employee data' },
         { status: 500 }
@@ -125,7 +138,36 @@ export async function GET(
       )
     }
 
-    return NextResponse.json({ employee })
+    // Fetch branch data separately if branch_id exists
+    let branchData = null
+    if ((employee as any).branch_id) {
+      const { data: branch } = await adminClient
+        .from('branches')
+        .select('id, name, address')
+        .eq('id', (employee as any).branch_id)
+        .single()
+
+      branchData = branch
+      console.log('Branch data fetched:', { branchId: (employee as any).branch_id, hasBranch: !!branch })
+    }
+
+    // Format the response to match EmployeeDetail interface
+    const employeeData = employee as any
+    const formattedEmployee = {
+      ...employeeData,
+      branch_name: branchData?.name || null,
+      branches: branchData?.name || null
+    }
+
+    console.log('Final formatted employee:', {
+      id: formattedEmployee.id,
+      email: formattedEmployee.email,
+      branch_id: formattedEmployee.branch_id,
+      branch_name: formattedEmployee.branch_name,
+      branches: formattedEmployee.branches
+    })
+
+    return NextResponse.json({ employee: formattedEmployee })
   } catch (error) {
     console.error('Unexpected error in employee API:', error)
     return NextResponse.json(
@@ -203,7 +245,7 @@ export async function PUT(
       .eq('id', user.id)
       .single()
 
-    if (!userProfile || userProfile.role !== 'admin') {
+    if (!userProfile || (userProfile as any).role !== 'admin') {
       return NextResponse.json(
         { error: 'ไม่มีสิทธิ์เข้าถึงข้อมูลนี้' },
         { status: 403 }
@@ -291,8 +333,7 @@ export async function PUT(
         is_active,
         hourly_rate,
         daily_rate,
-        created_at,
-        branches:branch_id(id,name,address)
+        created_at
       `)
       .single()
 
@@ -311,10 +352,30 @@ export async function PUT(
       }, { status: 404 })
     }
 
+    // Fetch branch data separately if branch_id exists
+    let branchData = null
+    if ((updatedEmployee as any).branch_id) {
+      const { data: branch } = await adminClient
+        .from('branches')
+        .select('id, name, address')
+        .eq('id', (updatedEmployee as any).branch_id)
+        .single()
+
+      branchData = branch
+    }
+
+    // Format the response to match EmployeeDetail interface
+    const employeeData = updatedEmployee as any
+    const formattedEmployee = {
+      ...employeeData,
+      branch_name: branchData?.name || null,
+      branches: branchData?.name || null
+    }
+
     return NextResponse.json({
       success: true,
       message: 'อัปเดตข้อมูลพนักงานเรียบร้อยแล้ว',
-      employee: updatedEmployee
+      employee: formattedEmployee
     })
 
   } catch (error) {

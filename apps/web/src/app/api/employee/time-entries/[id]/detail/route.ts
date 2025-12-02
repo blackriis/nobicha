@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase-server';
+import { createClient, createSupabaseServerClient } from '@/lib/supabase-server';
 import type { TimeEntryDetail } from 'packages/database';
 import { calculateDistance } from '@/lib/utils/gps.utils';
 import { isValidUUID } from '@/lib/validation';
@@ -14,7 +14,7 @@ export async function GET(
     // Input validation for time entry id
     if (!id || typeof id !== 'string' || id.length === 0) {
       return NextResponse.json(
-        { error: 'Time entry ID is required' },
+        { error: 'จำเป็นต้องระบุ ID การลงเวลา' },
         { status: 400 }
       );
     }
@@ -22,7 +22,7 @@ export async function GET(
     // Validate UUID format
     if (!isValidUUID(id)) {
       return NextResponse.json(
-        { error: 'Invalid time entry ID format. Expected UUID.' },
+        { error: 'รูปแบบ ID ไม่ถูกต้อง ต้องเป็น UUID' },
         { status: 400 }
       );
     }
@@ -34,53 +34,67 @@ export async function GET(
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
+      console.error('Authentication error:', authError);
       return NextResponse.json(
-        { error: 'Authentication required' },
+        { error: 'จำเป็นต้องเข้าสู่ระบบ' },
         { status: 401 }
       );
     }
 
-    // Query time entry with JOINs for branch, material usage, and raw materials
+    // Query time entry without branches join to avoid schema cache issues
     const { data: timeEntryData, error: timeEntryError } = await supabase
       .from('time_entries')
       .select(`
         id,
         user_id,
+        branch_id,
         check_in_time,
         check_out_time,
         check_in_selfie_url,
         check_out_selfie_url,
-        created_at,
-        branches!inner (
-          id,
-          name,
-          latitude,
-          longitude
-        )
+        created_at
       `)
       .eq('id', id)
       .eq('user_id', user.id) // Security check: only owner can access
       .single();
 
     if (timeEntryError) {
+      console.error('Time entry query error:', timeEntryError);
       if (timeEntryError.code === 'PGRST116') {
         return NextResponse.json(
-          { error: 'Time entry not found' },
+          { error: 'ไม่พบข้อมูลการลงเวลา' },
           { status: 404 }
         );
       }
-      console.error('Time entry query error:', timeEntryError);
       return NextResponse.json(
-        { error: 'Failed to fetch time entry details' },
+        { error: 'ไม่สามารถดึงรายละเอียดการทำงานได้', details: timeEntryError.message },
         { status: 500 }
       );
     }
 
     if (!timeEntryData) {
       return NextResponse.json(
-        { error: 'Time entry not found or access denied' },
+        { error: 'ไม่พบข้อมูลการลงเวลาหรือไม่มีสิทธิ์เข้าถึง' },
         { status: 404 }
       );
+    }
+
+    // Fetch branch data separately to avoid RLS and schema cache issues
+    let branchData = null;
+    if (timeEntryData.branch_id) {
+      const adminClient = createSupabaseServerClient();
+      const { data: branch, error: branchError } = await adminClient
+        .from('branches')
+        .select('id, name, address, latitude, longitude')
+        .eq('id', timeEntryData.branch_id)
+        .single();
+
+      if (branchError) {
+        console.error('Branch query error:', branchError);
+        // Continue without branch data rather than failing
+      } else {
+        branchData = branch;
+      }
     }
 
     // Query material usage for this time entry
@@ -118,11 +132,17 @@ export async function GET(
     const timeEntryDetail: TimeEntryDetail = {
       id: timeEntryData.id,
       employee_id: timeEntryData.user_id,
-      branch: {
-        id: timeEntryData.branches.id,
-        name: timeEntryData.branches.name,
-        latitude: timeEntryData.branches.latitude,
-        longitude: timeEntryData.branches.longitude,
+      branch: branchData ? {
+        id: branchData.id,
+        name: branchData.name,
+        latitude: branchData.latitude,
+        longitude: branchData.longitude,
+        address: branchData.address,
+      } : {
+        id: timeEntryData.branch_id,
+        name: 'ไม่ระบุสาขา',
+        latitude: 0,
+        longitude: 0,
       },
       check_in_time: timeEntryData.check_in_time,
       check_out_time: timeEntryData.check_out_time,
@@ -146,8 +166,9 @@ export async function GET(
 
   } catch (error) {
     console.error('Time entry detail API error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์', details: errorMessage },
       { status: 500 }
     );
   }

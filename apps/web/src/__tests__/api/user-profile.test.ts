@@ -22,6 +22,13 @@ vi.mock('@/lib/supabase-server', () => ({
 }))
 
 describe('/api/user/profile', () => {
+  const buildAuthorizedRequest = () =>
+    new NextRequest('https://example.com/api/user/profile', {
+      headers: {
+        authorization: 'Bearer test-token',
+      },
+    })
+
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -38,7 +45,7 @@ describe('/api/user/profile', () => {
         error: { message: 'Not authenticated' }
       })
 
-      const request = new NextRequest('https://example.com/api/user/profile')
+      const request = buildAuthorizedRequest()
       const response = await GET(request)
       const data = await response.json()
 
@@ -74,7 +81,7 @@ describe('/api/user/profile', () => {
         })
       })
 
-      const request = new NextRequest('https://example.com/api/user/profile')
+      const request = buildAuthorizedRequest()
       const response = await GET(request)
       const data = await response.json()
 
@@ -112,7 +119,7 @@ describe('/api/user/profile', () => {
         })
       })
 
-      const request = new NextRequest('https://example.com/api/user/profile')
+      const request = buildAuthorizedRequest()
       const response = await GET(request)
       const data = await response.json()
 
@@ -135,7 +142,11 @@ describe('/api/user/profile', () => {
         phone_number: '1234567890',
         hire_date: '2024-01-01',
         is_active: true,
-        created_at: '2024-01-01T00:00:00Z'
+        created_at: '2024-01-01T00:00:00Z',
+        branches: {
+          id: 'branch-1',
+          name: 'สาขาทดสอบ'
+        }
       }
 
       // Mock authenticated user
@@ -161,7 +172,7 @@ describe('/api/user/profile', () => {
         })
       })
 
-      const request = new NextRequest('https://example.com/api/user/profile')
+      const request = buildAuthorizedRequest()
       const response = await GET(request)
       const data = await response.json()
 
@@ -176,7 +187,7 @@ describe('/api/user/profile', () => {
       // Mock unexpected error
       mockSupabase.auth.getUser.mockRejectedValue(new Error('Unexpected error'))
 
-      const request = new NextRequest('https://example.com/api/user/profile')
+      const request = buildAuthorizedRequest()
       const response = await GET(request)
       const data = await response.json()
 

@@ -49,7 +49,7 @@ export async function GET(
         created_at,
         check_in_selfie_url,
         check_out_selfie_url,
-        branches:branch_id (
+        branches!time_entries_branch_id_fkey (
           id,
           name,
           address

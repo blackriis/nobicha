@@ -205,7 +205,7 @@ export class EmployeeService {
           branch_id,
           is_active,
           created_at,
-          branches:branch_id (
+          branches!users_branch_id_fkey (
             id,
             name,
             address

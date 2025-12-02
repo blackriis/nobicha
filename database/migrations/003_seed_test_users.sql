@@ -90,7 +90,7 @@ INSERT INTO raw_materials (name, unit, cost_per_unit, supplier, description) VAL
 -- MANUAL PROFILE INSERTION (Use only if automatic trigger doesn't work)
 -- ============================================================================
 
-/*
+
 -- If the automatic trigger doesn't create profiles, manually insert:
 INSERT INTO users (id, email, full_name, role, branch_id, employee_id, phone_number, hire_date) VALUES 
   -- Admin accounts (UUIDs should match Supabase auth.users)
@@ -102,4 +102,4 @@ INSERT INTO users (id, email, full_name, role, branch_id, employee_id, phone_num
   ('employee-malee-uuid', 'employee.malee@test.com', 'มาลี ดีใจ', 'employee', '00000000-0000-0000-0000-000000000002', 'EMP002', '0812345672', CURRENT_DATE - INTERVAL '8 months'),
   ('employee-chai-uuid', 'employee.chai@test.com', 'ชาย กล้าหาญ', 'employee', '00000000-0000-0000-0000-000000000003', 'EMP003', '0812345673', CURRENT_DATE - INTERVAL '6 months'),
   ('employee-nina-uuid', 'employee.nina@test.com', 'นิน่า สวยงาม', 'employee', NULL, 'EMP004', '0812345674', CURRENT_DATE - INTERVAL '3 months');
-*/
+

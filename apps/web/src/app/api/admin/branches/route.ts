@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user profile and check role using service role client to bypass RLS
-    const adminClient = await createSupabaseServerClient()
+    const adminClient = createSupabaseServerClient()
     const { data: userProfile } = await adminClient
       .from('users')
       .select('role')
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user profile and check role using service role client to bypass RLS
-    const adminClient = await createSupabaseServerClient()
+    const adminClient = createSupabaseServerClient()
     const { data: userProfile } = await adminClient
       .from('users')
       .select('role')

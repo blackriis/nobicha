@@ -1,4 +1,4 @@
-import { createClientComponentClient } from './supabase'
+import { createClientComponentClient } from '@/lib/supabase'
 import type { User } from '@supabase/supabase-js'
 import type { Database } from '@employee-management/database'
 import { validateSignInData, validateSignUpData, isEmail } from './validation'
@@ -121,8 +121,33 @@ export const auth = {
 
         // Get user profile after successful login
         if (data.user) {
-          const profile = await getUserProfile(data.user.id)
-          return { ...data, user: { ...data.user, profile } as AuthUser }
+          try {
+            const profile = await getUserProfile(data.user.id)
+            
+            if (profile) {
+              console.log('✅ User profile loaded successfully')
+              return { ...data, user: { ...data.user, profile } as AuthUser }
+            } else {
+              console.warn('⚠️ User profile not found, but login successful. User can continue without profile.')
+              // Return user without profile - AuthProvider can handle this case
+              return { ...data, user: { ...data.user, profile: undefined } as AuthUser }
+            }
+          } catch (profileError) {
+            // Log the error but don't fail the sign in
+            const errorMessage = profileError instanceof Error ? profileError.message : String(profileError)
+            const errorName = profileError instanceof Error ? profileError.name : 'UnknownError'
+            
+            console.error('⚠️ Failed to fetch user profile after sign in (non-blocking):', {
+              userId: data.user.id,
+              errorName,
+              errorMessage,
+              timestamp: new Date().toISOString()
+            })
+            
+            // Return user without profile - sign in was successful
+            // The user can still use the app, and profile can be loaded later
+            return { ...data, user: { ...data.user, profile: undefined } as AuthUser }
+          }
         }
 
         return data
@@ -357,16 +382,35 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     // Use enhanced fetch with error handling
     const { fetchWithErrorHandling } = await import('@/lib/fetch-utils')
     
-    const response = await fetchWithErrorHandling('/api/user/profile', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      credentials: 'include', // Include auth cookies
-      timeout: 15000,
-      retries: 1
-    })
+    let response: Response
+    try {
+      response = await fetchWithErrorHandling('/api/user/profile', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        credentials: 'include', // Include auth cookies
+        timeout: 15000,
+        retries: 1
+      })
+    } catch (fetchError) {
+      // Handle fetch errors (network, timeout, etc.)
+      const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError)
+      const errorName = fetchError instanceof Error ? fetchError.name : 'UnknownError'
+      const errorCode = (fetchError as any)?.code || 'UNKNOWN'
+      
+      console.error('Profile fetch failed (network/timeout error):', {
+        userId,
+        errorName,
+        errorMessage,
+        errorCode,
+        timestamp: new Date().toISOString()
+      })
+      
+      // Re-throw with better error message
+      throw new Error(`Failed to fetch user profile: ${errorMessage} (${errorCode})`)
+    }
     
     console.log('API response received:', {
       status: response.status,
@@ -438,46 +482,22 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
         return null
       }
 
-      // Log other errors with structured information  
-      const errorDetails = {
-        status: response.status,
-        statusText: response.statusText,
-        url: response.url,
-        userId,
-        errorData,
-        rawResponse: rawResponseText,
-        contentType: response.headers.get('content-type'),
-        timestamp: new Date().toISOString()
+      // Log other errors with detailed information
+      console.error('=== Profile API Error ===')
+      console.error('HTTP Status:', response.status, response.statusText)
+      console.error('User ID:', userId)
+      console.error('URL:', response.url)
+      console.error('Timestamp:', new Date().toISOString())
+      console.error('Error Message:', errorData.message || 'Unknown error')
+      console.error('Error Code:', errorData.code || 'UNKNOWN')
+      console.error('Error Data Keys:', Object.keys(errorData).join(', '))
+      console.error('Raw Response Length:', rawResponseText?.length || 0)
+      console.error('Content-Type:', response.headers.get('content-type') || 'No content type')
+      console.error('Raw Response:', rawResponseText || 'Empty response')
+      if (Object.keys(errorData).length > 0) {
+        console.error('Error Data (JSON):', JSON.stringify(errorData, null, 2))
       }
-      
-      // More detailed error logging
-      console.error('Profile API error:', {
-        status: response.status,
-        statusText: response.statusText,
-        userId,
-        errorMessage: errorData.message || 'Unknown error',
-        errorCode: errorData.code || 'UNKNOWN',
-        timestamp: new Date().toISOString()
-      })
-      
-      // Log individual error properties for better debugging
-      console.error('Profile API error details:', {
-        'HTTP Status': response.status,
-        'Status Text': response.statusText,
-        'User ID': userId,
-        'Error Message': errorData.message || 'No message',
-        'Error Code': errorData.code || 'No code',
-        'Raw Response': rawResponseText || 'No raw response',
-        'Content Type': response.headers.get('content-type') || 'No content type'
-      })
-      
-      // Extra explicit log to avoid collapsed empty object in some consoles
-      if (rawResponseText) {
-        console.error('Profile API raw response:', rawResponseText)
-      }
-      
-      // Log the full error details for debugging
-      console.error('Full error details:', errorDetails)
+      console.error('=========================')
       
       return null
     }
@@ -506,24 +526,34 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     return profile
 
   } catch (error) {
-    const errorInfo = {
-      userId,
-      error: error instanceof Error ? {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      } : error,
-      timestamp: new Date().toISOString()
+    // Enhanced error logging with clear output
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorName = error instanceof Error ? error.name : 'UnknownError'
+    const errorStack = error instanceof Error ? error.stack : undefined
+
+    // Log with clear, line-by-line output
+    console.error('=== Profile Fetch Error ===')
+    console.error('User ID:', userId)
+    console.error('Error Name:', errorName)
+    console.error('Error Message:', errorMessage)
+    console.error('Has Stack:', !!errorStack)
+    console.error('Timestamp:', new Date().toISOString())
+
+    // Log detailed error information
+    if (error instanceof Error && errorStack) {
+      console.error('Stack Preview:')
+      console.error(errorStack.split('\n').slice(0, 5).join('\n'))
+    } else if (!(error instanceof Error)) {
+      console.error('Error Type:', typeof error)
+      console.error('Error Value:', String(error))
+      try {
+        console.error('Error JSON:', JSON.stringify(error, null, 2))
+      } catch {
+        console.error('Could not stringify error')
+      }
     }
-    console.error('Error fetching user profile via API:', errorInfo)
-    
-    // Also log the error separately for better visibility
-    if (error instanceof Error) {
-      console.error('Profile fetch error details:', error.message)
-    } else {
-      console.error('Profile fetch unknown error:', error)
-    }
-    
+    console.error('========================')
+
     return null
   }
 }
@@ -624,15 +654,28 @@ async function createUserProfile(user: User): Promise<UserProfile | null> {
     return profile
 
   } catch (error) {
-    console.error('Error creating user profile:', {
-      userId: user.id,
-      error: error instanceof Error ? {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      } : error,
-      timestamp: new Date().toISOString()
-    })
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorName = error instanceof Error ? error.name : 'UnknownError'
+
+    console.error('=== Error Creating User Profile ===')
+    console.error('User ID:', user.id)
+    console.error('Error Name:', errorName)
+    console.error('Error Message:', errorMessage)
+    console.error('Timestamp:', new Date().toISOString())
+
+    if (error instanceof Error && error.stack) {
+      console.error('Stack Preview:')
+      console.error(error.stack.split('\n').slice(0, 5).join('\n'))
+    } else if (!(error instanceof Error)) {
+      console.error('Error Type:', typeof error)
+      try {
+        console.error('Error JSON:', JSON.stringify(error, null, 2))
+      } catch {
+        console.error('Could not stringify error')
+      }
+    }
+    console.error('===================================')
+
     return null
   }
 }

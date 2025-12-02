@@ -228,7 +228,12 @@ class AdminReportsService {
       const queryParams = this.formatDateRange(dateRange)
       const url = `/api/admin/reports/summary?${queryParams}`
       
-      const response = await fetch(url)
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
@@ -263,7 +268,12 @@ class AdminReportsService {
   }>> {
     try {
       const queryParams = this.formatDateRange(dateRange)
-      const response = await fetch(`/api/admin/reports/employees?${queryParams}&limit=${limit}`)
+      const response = await fetch(`/api/admin/reports/employees?${queryParams}&limit=${limit}`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
       
       if (!response.ok) {
         const errorData = await response.json()
@@ -298,7 +308,12 @@ class AdminReportsService {
   }>> {
     try {
       const queryParams = this.formatDateRange(dateRange)
-      const response = await fetch(`/api/admin/reports/branches?${queryParams}`)
+      const response = await fetch(`/api/admin/reports/branches?${queryParams}`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
       
       if (!response.ok) {
         const errorData = await response.json()
@@ -329,7 +344,12 @@ class AdminReportsService {
   async getSalesReports(dateRange: DateRangeFilter, limit: number = 100): Promise<AdminReportsServiceResult<SalesReport>> {
     try {
       const queryParams = this.formatDateRange(dateRange)
-      const response = await fetch(`/api/admin/reports/sales?${queryParams}&limit=${limit}`)
+      const response = await fetch(`/api/admin/reports/sales?${queryParams}&limit=${limit}`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
       
       if (!response.ok) {
         const errorData = await response.json()

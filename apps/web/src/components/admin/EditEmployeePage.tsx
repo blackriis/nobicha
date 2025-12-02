@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { EmployeeForm } from './EmployeeForm'
 import { EmployeeUpdateData, EmployeeDetail } from '@/lib/services/employee.service'
-import { branchService } from '@/lib/services/branch.service'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle, CheckCircle2 } from 'lucide-react'
@@ -49,14 +48,20 @@ export function EditEmployeePage({ employeeId }: EditEmployeePageProps) {
     return
    }
    
-   // Load employee via API and branches via service in parallel
-   const [employeeResponse, branchesResult] = await Promise.all([
+   // Load employee and branches via API in parallel
+   const [employeeResponse, branchesResponse] = await Promise.all([
     fetch(`/api/admin/employees/${employeeId}`, {
      headers: {
       'Authorization': `Bearer ${session.access_token}`
      }
     }),
-    branchService.getAllBranches()
+    fetch('/api/admin/branches', {
+     method: 'GET',
+     credentials: 'include',
+     headers: {
+      'Content-Type': 'application/json',
+     },
+    })
    ])
    
    // Handle employee API response
@@ -70,21 +75,30 @@ export function EditEmployeePage({ employeeId }: EditEmployeePageProps) {
     return
    }
    
+   // Handle branches API response
+   if (!branchesResponse.ok) {
+    const branchesError = await branchesResponse.json().catch(() => ({ error: 'Unknown error' }))
+    console.error('Failed to load branches:', branchesError)
+    setError(branchesError.error || 'ไม่สามารถโหลดข้อมูลสาขาได้')
+    return
+   }
+   
    const employeeData = await employeeResponse.json()
    const employeeResult = employeeData.employee
+   const branchesData = await branchesResponse.json()
 
    if (!employeeResult) {
     setError('ไม่พบข้อมูลพนักงานรายการนี้')
     return
    }
 
-   if (!branchesResult.success || !branchesResult.data || branchesResult.data.length === 0) {
+   if (!branchesData.success || !branchesData.branches || branchesData.branches.length === 0) {
     setError('ไม่พบข้อมูลสาขา')
     return
    }
 
    setEmployee(employeeResult)
-   setBranches(branchesResult.data)
+   setBranches(branchesData.branches)
   } catch (err) {
    console.error('Load data error:', {
     error: err,

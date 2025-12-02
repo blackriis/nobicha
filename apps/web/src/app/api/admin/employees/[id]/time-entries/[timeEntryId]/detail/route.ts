@@ -115,7 +115,7 @@ export async function GET(
         total_hours,
         notes,
         created_at,
-        branches:branch_id (
+        branches!time_entries_branch_id_fkey (
           id,
           name,
           address,

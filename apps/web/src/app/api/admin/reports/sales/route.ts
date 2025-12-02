@@ -68,26 +68,11 @@ export async function GET(request: NextRequest) {
         dateFilter = now.toISOString().split('T')[0]
     }
 
-    // Fetch sales reports with related data
+    // Step 1: Fetch sales reports
+    console.log('Step 1: Getting sales reports...')
     const { data: salesData, error } = await adminClient
       .from('sales_reports')
-      .select(`
-        id,
-        branch_id,
-        user_id,
-        report_date,
-        total_sales,
-        created_at,
-        branches!inner(
-          id,
-          name
-        ),
-        users!inner(
-          id,
-          full_name,
-          employee_id
-        )
-      `)
+      .select('id, branch_id, user_id, report_date, total_sales, created_at')
       .gte('created_at', dateFilter)
       .order('created_at', { ascending: false })
       .limit(limit)
@@ -95,23 +80,70 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('Sales reports query error:', error)
       return NextResponse.json(
-        { error: 'Failed to fetch sales reports' },
+        { error: 'Failed to fetch sales reports', details: error.message },
         { status: 500 }
       )
     }
 
+    console.log('Sales reports found:', salesData?.length || 0)
+
+    // Step 2: Get branches data
+    const branchIds = [...new Set(salesData?.map(sale => sale.branch_id) || [])]
+    const { data: branches, error: branchesError } = await adminClient
+      .from('branches')
+      .select('id, name')
+      .in('id', branchIds)
+
+    if (branchesError) {
+      console.error('Branches error:', branchesError)
+      return NextResponse.json(
+        { error: 'Failed to fetch branches', details: branchesError.message },
+        { status: 500 }
+      )
+    }
+
+    console.log('Branches found:', branches?.length || 0)
+
+    // Step 3: Get users data
+    const userIds = [...new Set(salesData?.map(sale => sale.user_id) || [])]
+    const { data: users, error: usersError } = await adminClient
+      .from('users')
+      .select('id, full_name, employee_id')
+      .in('id', userIds)
+
+    if (usersError) {
+      console.error('Users error:', usersError)
+      return NextResponse.json(
+        { error: 'Failed to fetch users', details: usersError.message },
+        { status: 500 }
+      )
+    }
+
+    console.log('Users found:', users?.length || 0)
+
+    // Step 4: Combine data manually
+    const branchesMap = new Map(branches?.map(branch => [branch.id, branch]) || [])
+    const usersMap = new Map(users?.map(user => [user.id, user]) || [])
+
     // Process sales data
-    const salesReports = salesData?.map((sale: any) => ({
-      id: sale.id,
-      branchId: sale.branch_id,
-      branchName: sale.branches.name,
-      userId: sale.user_id,
-      employeeName: sale.users.full_name,
-      employeeId: sale.users.employee_id,
-      reportDate: sale.report_date,
-      totalSales: sale.total_sales,
-      createdAt: sale.created_at
-    })) || []
+    const salesReports = salesData?.map((sale: any) => {
+      const branch = branchesMap.get(sale.branch_id)
+      const user = usersMap.get(sale.user_id)
+
+      return {
+        id: sale.id,
+        branchId: sale.branch_id,
+        branchName: branch?.name || 'ไม่ระบุสาขา',
+        userId: sale.user_id,
+        employeeName: user?.full_name || 'ไม่ระบุพนักงาน',
+        employeeId: user?.employee_id || 'N/A',
+        reportDate: sale.report_date,
+        totalSales: sale.total_sales,
+        createdAt: sale.created_at
+      }
+    }) || []
+
+    console.log('Combined sales reports:', salesReports.length)
 
     // Calculate daily breakdown
     const dailyBreakdown = new Map()

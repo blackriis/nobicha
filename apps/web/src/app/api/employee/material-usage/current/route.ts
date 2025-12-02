@@ -26,13 +26,31 @@ export async function GET(request: NextRequest) {
     }
 
     // Get user profile and check employee role
-    const { data: userProfile } = await supabase
+    const { data: userProfile, error: profileError } = await supabase
       .from('users')
       .select('role')
       .eq('id', user.id)
       .single()
 
+    if (profileError) {
+      console.error('Error fetching user profile:', {
+        userId: user.id,
+        error: profileError.message,
+        code: profileError.code,
+        details: profileError.details,
+        hint: profileError.hint
+      })
+      return NextResponse.json(
+        { error: 'เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์' },
+        { status: 500 }
+      )
+    }
+
     if (!userProfile || userProfile.role !== 'employee') {
+      console.warn('User does not have employee role:', {
+        userId: user.id,
+        role: userProfile?.role || 'not found'
+      })
       return NextResponse.json(
         { error: 'ต้องมีสิทธิ์พนักงานเท่านั้น' },
         { status: 403 }

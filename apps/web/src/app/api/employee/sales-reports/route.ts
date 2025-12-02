@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
     const reportDate = url.searchParams.get('report_date')
     console.log('📅 Sales Reports GET: Report date filter:', reportDate)
     
-    // Build query
+    // Build query - query sales_reports first without branches join to avoid RLS issues
     console.log('🔍 Sales Reports GET: Building database query')
     let query = supabase
       .from('sales_reports')
@@ -114,13 +114,7 @@ export async function GET(request: NextRequest) {
         card_sales,
         other_sales,
         notes,
-        created_at,
-        branches (
-          id,
-          name,
-          latitude,
-          longitude
-        )
+        created_at
       `)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
@@ -143,6 +137,33 @@ export async function GET(request: NextRequest) {
     }
 
     console.log('✅ Sales Reports GET: Query successful, found', salesReports?.length || 0, 'reports')
+
+    // Fetch branches separately using admin client to avoid RLS issues
+    if (salesReports && salesReports.length > 0) {
+      const branchIds = [...new Set(salesReports.map(report => report.branch_id).filter(Boolean))]
+      
+      if (branchIds.length > 0) {
+        console.log('🔍 Sales Reports GET: Fetching branches for', branchIds.length, 'unique branches')
+        const { data: branches, error: branchesError } = await adminSupabase
+          .from('branches')
+          .select('id, name, latitude, longitude')
+          .in('id', branchIds)
+
+        if (branchesError) {
+          console.error('❌ Sales Reports GET: Error fetching branches:', branchesError)
+          // Continue without branches data rather than failing
+        } else {
+          // Map branches to sales reports
+          const branchMap = new Map(branches?.map(b => [b.id, b]) || [])
+          salesReports.forEach(report => {
+            const branch = branchMap.get(report.branch_id)
+            if (branch) {
+              (report as any).branches = branch
+            }
+          })
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -348,8 +369,57 @@ export async function POST(request: NextRequest) {
       .from('sales-slips')
       .getPublicUrl(fileName)
 
+    // Validate foreign keys before insert
+    console.log('🔍 Sales Reports POST: Validating foreign keys...')
+    console.log('  - User ID:', user.id)
+    console.log('  - Branch ID:', currentBranchId)
+    console.log('  - Report Date:', reportDate)
+    
+    // Verify branch exists
+    const { data: branchExists, error: branchCheckError } = await adminSupabase
+      .from('branches')
+      .select('id')
+      .eq('id', currentBranchId)
+      .single()
+
+    if (branchCheckError || !branchExists) {
+      console.error('❌ Sales Reports POST: Branch not found:', currentBranchId)
+      // Cleanup uploaded file
+      await adminSupabase.storage
+        .from('sales-slips')
+        .remove([fileName])
+      
+      return NextResponse.json(
+        { error: 'ไม่พบสาขาที่ระบุ กรุณาเช็คอินใหม่' },
+        { status: 400 }
+      )
+    }
+
+    // Verify user exists in users table
+    const { data: userExists, error: userCheckError } = await adminSupabase
+      .from('users')
+      .select('id')
+      .eq('id', user.id)
+      .single()
+
+    if (userCheckError || !userExists) {
+      console.error('❌ Sales Reports POST: User not found in users table:', user.id)
+      // Cleanup uploaded file
+      await adminSupabase.storage
+        .from('sales-slips')
+        .remove([fileName])
+      
+      return NextResponse.json(
+        { error: 'ไม่พบข้อมูลผู้ใช้ กรุณาติดต่อผู้ดูแลระบบ' },
+        { status: 400 }
+      )
+    }
+
+    console.log('✅ Sales Reports POST: Foreign keys validated')
+
     // Insert sales report record
     // Use service role client for inserting the sales report to avoid table RLS issues
+    console.log('💾 Sales Reports POST: Inserting sales report...')
     const { data: salesReport, error: insertError } = await adminSupabase
       .from('sales_reports')
       .insert({
@@ -371,32 +441,86 @@ export async function POST(request: NextRequest) {
         card_sales,
         other_sales,
         notes,
-        created_at,
-        branches (
-          id,
-          name
-        )
+        created_at
       `)
       .single()
 
     if (insertError) {
-      console.error('Database insert error:', insertError)
+      console.error('❌ Sales Reports POST: Database insert error details:', {
+        message: insertError.message,
+        details: insertError.details,
+        hint: insertError.hint,
+        code: insertError.code,
+        userId: user.id,
+        branchId: currentBranchId,
+        reportDate: reportDate,
+        totalSales: totalSales,
+        slipImageUrl: publicUrl
+      })
       
       // Cleanup uploaded file if database insert fails
-      await adminSupabase.storage
-        .from('sales-slips')
-        .remove([fileName])
+      try {
+        await adminSupabase.storage
+          .from('sales-slips')
+          .remove([fileName])
+        console.log('✅ Sales Reports POST: Cleaned up uploaded file')
+      } catch (cleanupError) {
+        console.error('⚠️ Sales Reports POST: Failed to cleanup uploaded file:', cleanupError)
+      }
+
+      // Provide more specific error messages based on error code
+      let errorMessage = 'เกิดข้อผิดพลาดในการบันทึกรายงานยอดขาย'
+      
+      if (insertError.code === '23503') { // Foreign key violation
+        if (insertError.message?.includes('branch_id')) {
+          errorMessage = 'ไม่พบสาขาที่ระบุ กรุณาเช็คอินใหม่'
+        } else if (insertError.message?.includes('user_id')) {
+          errorMessage = 'ไม่พบข้อมูลผู้ใช้ กรุณาติดต่อผู้ดูแลระบบ'
+        } else {
+          errorMessage = 'ข้อมูลอ้างอิงไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง'
+        }
+      } else if (insertError.code === '23505') { // Unique constraint violation
+        errorMessage = 'คุณได้ทำการรายงานยอดขายของวันนี้แล้ว กรุณาตรวจสอบในประวัติการรายงาน'
+      } else if (insertError.code === '23502') { // Not null violation
+        errorMessage = 'ข้อมูลไม่ครบถ้วน กรุณาตรวจสอบข้อมูลที่ส่ง'
+      }
 
       return NextResponse.json(
-        { error: 'เกิดข้อผิดพลาดในการบันทึกรายงานยอดขาย' },
+        { 
+          error: errorMessage,
+          details: process.env.NODE_ENV === 'development' ? insertError.message : undefined
+        },
         { status: 500 }
       )
+    }
+
+    console.log('✅ Sales Reports POST: Sales report inserted successfully')
+
+    // Fetch branch information separately to avoid relationship issues
+    let salesReportWithBranch = salesReport
+    if (salesReport && currentBranchId) {
+      console.log('🔍 Sales Reports POST: Fetching branch information...')
+      const { data: branch, error: branchError } = await adminSupabase
+        .from('branches')
+        .select('id, name, latitude, longitude')
+        .eq('id', currentBranchId)
+        .single()
+
+      if (!branchError && branch) {
+        salesReportWithBranch = {
+          ...salesReport,
+          branches: branch
+        } as any
+        console.log('✅ Sales Reports POST: Branch information added')
+      } else {
+        console.warn('⚠️ Sales Reports POST: Could not fetch branch information:', branchError)
+      }
     }
 
     return NextResponse.json({
       success: true,
       message: `บันทึกรายงานยอดขายสำเร็จ ยอดขายรวม: ฿${totalSales.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`,
-      data: salesReport
+      data: salesReportWithBranch
     }, { status: 201 })
 
   } catch (error) {

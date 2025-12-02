@@ -45,29 +45,25 @@ export async function fetchWithErrorHandling(
 
         clearTimeout(timeoutId)
 
-        // Handle network errors
+        // Handle HTTP errors without throwing so callers can inspect response
         if (!response.ok) {
-          const error: FetchError = new Error(
-            `HTTP ${response.status}: ${response.statusText}`
-          ) as FetchError
-          error.status = response.status
-          error.statusText = response.statusText
-          error.response = response
-          error.code = 'HTTP_ERROR'
-
-          // Don't retry on client errors (4xx)
-          if (response.status >= 400 && response.status < 500) {
-            throw error
-          }
-
-          // Retry on server errors (5xx) if retries available
-          if (attempt < retries && response.status >= 500) {
+          // Retry only for server errors (5xx)
+          if (response.status >= 500 && attempt < retries) {
+            const error: FetchError = new Error(
+              `HTTP ${response.status}: ${response.statusText}`
+            ) as FetchError
+            error.status = response.status
+            error.statusText = response.statusText
+            error.response = response
+            error.code = 'HTTP_ERROR'
             lastError = error
+
             await new Promise((resolve) => setTimeout(resolve, retryDelay))
             continue
           }
 
-          throw error
+          // Return the non-OK response so caller can read status/body
+          return response
         }
 
         return response

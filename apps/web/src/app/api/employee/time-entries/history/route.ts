@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { createClient, createSupabaseServerClient } from '@/lib/supabase-server'
 import { TimeEntry } from '@/../../packages/database/types'
 
 type DateRangeFilter = 'today' | 'week' | 'month'
@@ -15,11 +15,16 @@ interface TimeEntryWithBranch extends TimeEntry {
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createSupabaseServerClient()
+    // Use createClient() for SSR - reads cookies correctly
+    const supabase = await createClient()
     
     // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
+      console.error('History API - Auth failed:', {
+        authError: authError?.message,
+        hasUser: !!user
+      })
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -51,7 +56,7 @@ export async function GET(request: NextRequest) {
         dateFilter = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
     }
 
-    // Build query based on date range
+    // Query time entries without branches join to avoid schema cache issues
     let query = supabase
       .from('time_entries')
       .select(`
@@ -63,12 +68,7 @@ export async function GET(request: NextRequest) {
         total_hours,
         notes,
         created_at,
-        branches:branch_id (
-          id,
-          name,
-          latitude,
-          longitude
-        )
+        break_duration
       `)
       .eq('user_id', user.id)
       .order('check_in_time', { ascending: false })
@@ -96,26 +96,49 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Fetch branch data separately to avoid RLS issues
+    const branchIds = [...new Set((timeEntries || []).map(entry => entry.branch_id).filter(Boolean))]
+    let branchMap = new Map()
+    
+    if (branchIds.length > 0) {
+      // Use service role client to bypass RLS for branch data
+      const adminClient = createSupabaseServerClient()
+      const { data: branches, error: branchError } = await adminClient
+        .from('branches')
+        .select('id, name, latitude, longitude')
+        .in('id', branchIds)
+
+      if (branchError) {
+        console.error('Branch query error:', branchError)
+        // Continue without branch data rather than failing
+      } else {
+        branchMap = new Map(branches?.map(b => [b.id, b]) || [])
+      }
+    }
+
     // Transform data to match expected interface
     // Note: Exclude sensitive selfie_url for privacy and performance in history view
-    const formattedEntries: TimeEntryWithBranch[] = (timeEntries || []).map(entry => ({
-      id: entry.id,
-      user_id: entry.user_id,
-      branch_id: entry.branch_id,
-      check_in_time: entry.check_in_time,
-      check_out_time: entry.check_out_time,
-      // Intentionally omit selfie_url for history list view (not needed for display)
-      break_duration: entry.break_duration || 0,
-      total_hours: entry.total_hours,
-      notes: entry.notes,
-      created_at: entry.created_at,
-      branch: {
-        id: entry.branches?.id || entry.branch_id,
-        name: entry.branches?.name || 'ไม่ระบุสาขา',
-        latitude: entry.branches?.latitude || 0,
-        longitude: entry.branches?.longitude || 0
+    const formattedEntries: TimeEntryWithBranch[] = (timeEntries || []).map(entry => {
+      const branch = branchMap.get(entry.branch_id)
+      return {
+        id: entry.id,
+        user_id: entry.user_id,
+        branch_id: entry.branch_id,
+        check_in_time: entry.check_in_time,
+        check_out_time: entry.check_out_time,
+        // Intentionally omit selfie_url for history list view (not needed for display)
+        break_duration: entry.break_duration || 0,
+        total_hours: entry.total_hours,
+        notes: entry.notes,
+        created_at: entry.created_at,
+        branch: {
+          id: branch?.id || entry.branch_id,
+          name: branch?.name || 'ไม่ระบุสาขา',
+          latitude: branch?.latitude || 0,
+          longitude: branch?.longitude || 0
+        }
       }
-    }))
+    })
 
     return NextResponse.json({
       success: true,

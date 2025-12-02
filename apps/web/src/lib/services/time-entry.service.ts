@@ -111,6 +111,7 @@ class TimeEntryService {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include cookies for authentication
         body: JSON.stringify(request),
       });
 
@@ -136,6 +137,7 @@ class TimeEntryService {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include cookies for authentication
         body: JSON.stringify(request),
       });
 
@@ -161,6 +163,7 @@ class TimeEntryService {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include cookies for authentication
       });
 
       if (!response.ok) {
@@ -194,6 +197,7 @@ class TimeEntryService {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include cookies for authentication
       });
 
       if (!response.ok) {
@@ -263,19 +267,20 @@ class TimeEntryService {
     try {
       // Get user's current location
       const locationResult = await locationService.getCurrentPosition();
-      
+
       if (!locationResult.success || !locationResult.data) {
         throw new Error(locationResult.error || 'ไม่สามารถระบุตำแหน่งได้');
       }
 
       const position = locationResult.data;
-      
+
       // Call the available branches API with GPS coordinates
       const response = await fetch('/api/employee/available-branches', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include cookies for authentication
         body: JSON.stringify({
           latitude: position.latitude,
           longitude: position.longitude
@@ -569,6 +574,7 @@ class TimeEntryService {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include cookies for authentication
       });
 
       if (!response.ok) {
@@ -727,6 +733,7 @@ class TimeEntryService {
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include cookies for authentication
       });
 
       if (!response.ok) {

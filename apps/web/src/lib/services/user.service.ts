@@ -14,7 +14,7 @@ export class UserService {
       .from('users')
       .select(`
         *,
-        branches:branch_id (
+        branches!users_branch_id_fkey (
           id,
           name,
           address
@@ -39,7 +39,7 @@ export class UserService {
       .eq('id', userId)
       .select(`
         *,
-        branches:branch_id (
+        branches!users_branch_id_fkey (
           id,
           name,
           address
@@ -62,7 +62,7 @@ export class UserService {
       .insert(profile)
       .select(`
         *,
-        branches:branch_id (
+        branches!users_branch_id_fkey (
           id,
           name,
           address
@@ -84,7 +84,7 @@ export class UserService {
       .from('users')
       .select(`
         *,
-        branches:branch_id (
+        branches!users_branch_id_fkey (
           id,
           name,
           address
@@ -106,7 +106,7 @@ export class UserService {
       .from('users')
       .select(`
         *,
-        branches:branch_id (
+        branches!users_branch_id_fkey (
           id,
           name,
           address
@@ -129,7 +129,7 @@ export class UserService {
       .from('users')
       .select(`
         *,
-        branches:branch_id (
+        branches!users_branch_id_fkey (
           id,
           name,
           address
@@ -154,7 +154,7 @@ export class UserService {
       .eq('id', userId)
       .select(`
         *,
-        branches:branch_id (
+        branches!users_branch_id_fkey (
           id,
           name,
           address

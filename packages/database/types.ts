@@ -127,6 +127,43 @@ export interface AuditLog {
   created_at: string
 }
 
+// TimeEntryDetail - Extended type for detailed time entry information
+export interface TimeEntryDetail {
+  id: string
+  employee_id: string
+  branch: {
+    id: string
+    name: string
+    latitude: number
+    longitude: number
+    address?: string
+  }
+  check_in_time: string
+  check_out_time?: string
+  check_in_selfie_url?: string
+  check_out_selfie_url?: string
+  check_in_location?: {
+    latitude: number
+    longitude: number
+    address?: string
+    distance_from_branch?: number
+  }
+  check_out_location?: {
+    latitude: number
+    longitude: number
+    address?: string
+    distance_from_branch?: number
+  }
+  material_usage: Array<{
+    raw_material: {
+      name: string
+      unit: string
+    }
+    quantity_used: number
+  }>
+  total_hours?: number
+}
+
 // Insert types (without id and created_at for new records)
 export type BranchInsert = Omit<Branch, 'id' | 'created_at'>
 export type UserInsert = Omit<User, 'id' | 'created_at'>

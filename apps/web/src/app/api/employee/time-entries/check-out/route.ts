@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createSupabaseServerClient } from '@/lib/supabase-server';
 import { calculateDistance } from '@/lib/utils/gps.utils';
 import { generalRateLimiter } from '@/lib/rate-limit';
+import { config } from '@employee-management/config';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
+import type { Database } from '@employee-management/database';
 
 /**
  * SECURITY: Validate that selfie URL belongs to the current user
@@ -31,8 +34,19 @@ export async function POST(request: NextRequest) {
     const supabaseAuth = await createClient();
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
     
-    // Use service role client for database operations
-    const supabase = await createSupabaseServerClient();
+    // Use service role client for database operations (same approach as status route)
+    const adminClient = createAdminClient<Database>(
+      config.supabase.url,
+      config.supabase.serviceRoleKey || config.supabase.anonKey,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+    
+    const supabase = adminClient;
     if (authError || !user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -91,17 +105,66 @@ export async function POST(request: NextRequest) {
     }
 
     // Get branch details for GPS validation
-    const { data: branch, error: branchError } = await supabase
+    // First, try to get branch with service role client
+    let { data: branch, error: branchError } = await supabase
       .from('branches')
       .select('id, name, latitude, longitude')
       .eq('id', activeEntry.branch_id)
       .single();
 
+    // If branch not found, try to get any available branch as fallback
+    // This handles cases where branch was deleted after check-in
     if (branchError || !branch) {
-      return NextResponse.json(
-        { error: 'Branch not found' },
-        { status: 404 }
-      );
+      console.error('❌ Branch query error:', {
+        branchId: activeEntry.branch_id,
+        error: branchError,
+        errorCode: branchError?.code,
+        errorMessage: branchError?.message,
+        errorDetails: branchError?.details,
+        errorHint: branchError?.hint,
+        hasServiceRoleKey: !!config.supabase.serviceRoleKey
+      });
+      
+      // Check if any branches exist (for debugging)
+      const { data: allBranches } = await supabase
+        .from('branches')
+        .select('id, name')
+        .limit(10);
+      
+      console.error('📋 Available branches in database:', allBranches?.map(b => ({ id: b.id, name: b.name })));
+      
+      // Try to get the first available branch as fallback (for data recovery)
+      if (allBranches && allBranches.length > 0) {
+        console.warn('⚠️ Using fallback branch due to missing branch_id:', {
+          originalBranchId: activeEntry.branch_id,
+          fallbackBranchId: allBranches[0].id,
+          fallbackBranchName: allBranches[0].name
+        });
+        
+        const { data: fallbackBranch } = await supabase
+          .from('branches')
+          .select('id, name, latitude, longitude')
+          .eq('id', allBranches[0].id)
+          .single();
+        
+        if (fallbackBranch) {
+          branch = fallbackBranch;
+          branchError = null;
+        }
+      }
+      
+      // If still no branch found, return error
+      if (!branch) {
+        return NextResponse.json(
+          { 
+            error: 'Branch not found',
+            details: `Branch ID ${activeEntry.branch_id} does not exist in database. This may indicate data inconsistency.`,
+            branchId: activeEntry.branch_id,
+            suggestion: 'Please contact administrator to fix this issue. The check-in may have been created with an invalid branch ID.'
+          },
+          { status: 404 }
+        );
+      }
     }
 
     // Validate GPS location (within 100 meters)

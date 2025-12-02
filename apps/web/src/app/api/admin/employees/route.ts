@@ -46,12 +46,7 @@ async function getEmployeeListWithServiceRole(
         role,
         branch_id,
         is_active,
-        created_at,
-        branches:branch_id (
-          id,
-          name,
-          address
-        )
+        created_at
       `, { count: 'exact' })
 
     // Apply search filter
@@ -98,8 +93,8 @@ async function getEmployeeListWithServiceRole(
       branch_id: user.branch_id,
       is_active: user.is_active,
       created_at: user.created_at,
-      branch_name: user.branches?.name || 'ไม่ระบุสาขา',
-      branch_address: user.branches?.address || ''
+      branch_name: user.branch_id || 'ไม่ระบุสาขา',
+      branch_address: ''
     }))
 
     return {
@@ -302,12 +297,26 @@ export async function POST(request: NextRequest) {
     })
 
     if (createUserError || !authUser.user) {
-      console.error('Create auth user error:', createUserError)
+      console.error('Create auth user error:', {
+        error: createUserError,
+        message: createUserError?.message,
+        status: createUserError?.status,
+        details: createUserError
+      })
+
+      // Return more specific error message
+      const errorMessage = createUserError?.message
+        ? `ไม่สามารถสร้างบัญชีผู้ใช้ได้: ${createUserError.message}`
+        : 'ไม่สามารถสร้างบัญชีผู้ใช้ได้'
+
       return NextResponse.json({
         success: false,
-        error: 'ไม่สามารถสร้างบัญชีผู้ใช้ได้'
+        error: errorMessage
       }, { status: 500 })
     }
+
+    // Generate username from email (part before @)
+    const username = employeeData.email.split('@')[0].toLowerCase()
 
     // Create user record in users table
     const { data: newEmployee, error: createEmployeeError } = await supabase
@@ -315,6 +324,7 @@ export async function POST(request: NextRequest) {
       .insert({
         id: authUser.user.id,
         email: employeeData.email,
+        username: username,
         full_name: employeeData.full_name.trim(),
         role: employeeData.user_role || 'employee',
         branch_id: employeeData.home_branch_id, // Map home_branch_id to branch_id
@@ -326,14 +336,35 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (createEmployeeError) {
-      console.error('Create employee error:', createEmployeeError)
-      
+      console.error('Create employee error:', {
+        error: createEmployeeError,
+        message: createEmployeeError?.message,
+        code: createEmployeeError?.code,
+        details: createEmployeeError?.details,
+        hint: createEmployeeError?.hint,
+        employeeData: {
+          id: authUser.user.id,
+          email: employeeData.email,
+          full_name: employeeData.full_name,
+          role: employeeData.user_role || 'employee',
+          branch_id: employeeData.home_branch_id,
+          hourly_rate: employeeData.hourly_rate,
+          daily_rate: employeeData.daily_rate,
+          is_active: employeeData.is_active ?? true
+        }
+      })
+
       // Rollback: Delete auth user if employee creation failed
       await supabase.auth.admin.deleteUser(authUser.user.id)
-      
+
+      // Return more specific error message
+      const errorMessage = createEmployeeError?.message
+        ? `ไม่สามารถสร้างข้อมูลพนักงานได้: ${createEmployeeError.message}`
+        : 'ไม่สามารถสร้างข้อมูลพนักงานได้'
+
       return NextResponse.json({
         success: false,
-        error: 'ไม่สามารถสร้างข้อมูลพนักงานได้'
+        error: errorMessage
       }, { status: 500 })
     }
 
@@ -364,7 +395,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Handle preflight requests for CORS
-export async function OPTIONS(request: NextRequest) {
+export async function OPTIONS() {
   return new NextResponse(null, {
     status: 200,
     headers: {

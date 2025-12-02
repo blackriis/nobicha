@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { EmployeeForm } from './EmployeeForm'
 import { EmployeeFormData } from '@/lib/services/employee.service'
-import { branchService } from '@/lib/services/branch.service'
 import { employeeService } from '@/lib/services/employee.service'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -33,15 +32,29 @@ export function AddEmployeePage() {
    setLoading(true)
    setError(null)
    
-   // Get all active branches
-   const result = await branchService.getAllBranches()
+   // Get all active branches via API route (server-side with proper auth)
+   const response = await fetch('/api/admin/branches', {
+    method: 'GET',
+    credentials: 'include',
+    headers: {
+     'Content-Type': 'application/json',
+    },
+   })
    
-   if (!result.success || !result.data || result.data.length === 0) {
-    setError(result.error || 'ไม่พบข้อมูลสาขา กรุณาเพิ่มสาขาก่อนสร้างพนักงาน')
+   const result = await response.json()
+   
+   if (!response.ok) {
+    console.error('Failed to load branches:', result)
+    setError(result.error || 'ไม่สามารถโหลดข้อมูลสาขาได้')
+    return
+   }
+   
+   if (!result.success || !result.branches || result.branches.length === 0) {
+    setError('ไม่พบข้อมูลสาขา กรุณาเพิ่มสาขาก่อนสร้างพนักงาน')
     return
    }
 
-   setBranches(result.data)
+   setBranches(result.branches)
   } catch (err) {
    console.error('Load branches error:', err)
    setError('เกิดข้อผิดพลาดในการโหลดข้อมูลสาขา')

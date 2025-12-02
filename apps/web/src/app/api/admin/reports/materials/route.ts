@@ -89,73 +89,34 @@ export async function GET(request: NextRequest) {
         dateFilter = now.toISOString().split('T')[0]
     }
 
-    console.log('📅 Date filter config:', { 
-      dateRange, 
-      dateFilter, 
+    console.log('📅 Date filter config:', {
+      dateRange,
+      dateFilter,
       useTimeFilter,
       startDate,
       endDate,
       branchId
     })
 
-    // Build base query - use left join for time_entries since some records might not have time_entries
-    let query = adminClient
+    // Step 1: Fetch material usage data
+    let materialQuery = adminClient
       .from('material_usage')
-      .select(`
-        id,
-        material_id,
-        quantity_used,
-        unit_cost,
-        total_cost,
-        notes,
-        created_at,
-        time_entry_id,
-        raw_materials!inner(
-          id,
-          name,
-          unit,
-          cost_per_unit,
-          supplier
-        ),
-        time_entries(
-          id,
-          user_id,
-          branch_id,
-          users(
-            id,
-            full_name,
-            employee_id
-          ),
-          branches(
-            id,
-            name
-          )
-        )
-      `)
+      .select('id, material_id, time_entry_id, quantity_used, unit_cost, total_cost, notes, created_at')
 
     // Apply date filter only if specified
     if (useTimeFilter && dateFilter) {
-      query = query.gte('created_at', dateFilter)
-    }
-
-    // Apply branch filter if specified
-    if (branchId) {
-      query = query.eq('time_entries.branch_id', branchId)
+      materialQuery = materialQuery.gte('created_at', dateFilter)
     }
 
     // Apply ordering and limit
-    query = query.order('created_at', { ascending: false }).limit(limit)
+    materialQuery = materialQuery.order('created_at', { ascending: false }).limit(limit)
 
-    console.log('🔍 Executing query with filters:', { useTimeFilter, dateFilter, branchId })
+    const { data: materialUsageData, error } = await materialQuery
 
-    // Execute the query
-    const { data: materialUsageData, error } = await query
-
-    console.log('📊 Query result:', {
+    console.log('📊 Material usage result:', {
       dataCount: materialUsageData?.length || 0,
       hasError: !!error,
-      errorMessage: error?.message,
-      sampleRecord: materialUsageData?.[0] || null
+      errorMessage: error?.message
     })
 
     if (error) {
@@ -166,36 +127,114 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Step 2: Get raw materials data
+    const materialIds = [...new Set(materialUsageData?.map(usage => usage.material_id) || [])]
+    const { data: rawMaterials, error: materialsError } = await adminClient
+      .from('raw_materials')
+      .select('id, name, unit, cost_per_unit, supplier')
+      .in('id', materialIds)
+
+    if (materialsError) {
+      console.error('Raw materials error:', materialsError)
+      return NextResponse.json(
+        { error: 'Failed to fetch raw materials', details: materialsError.message },
+        { status: 500 }
+      )
+    }
+
+    console.log('Raw materials found:', rawMaterials?.length || 0)
+
+    // Step 3: Get time entries data
+    const timeEntryIds = [...new Set(materialUsageData?.map(usage => usage.time_entry_id).filter(Boolean) || [])]
+    let timeEntriesQuery = adminClient
+      .from('time_entries')
+      .select('id, user_id, branch_id')
+      .in('id', timeEntryIds)
+
+    // Apply branch filter if specified
+    if (branchId) {
+      timeEntriesQuery = timeEntriesQuery.eq('branch_id', branchId)
+    }
+
+    const { data: timeEntries, error: timeEntriesError } = await timeEntriesQuery
+
+    if (timeEntriesError) {
+      console.error('Time entries error:', timeEntriesError)
+    }
+
+    console.log('Time entries found:', timeEntries?.length || 0)
+
+    // Step 4: Get users data
+    const userIds = [...new Set(timeEntries?.map(entry => entry.user_id) || [])]
+    const { data: users, error: usersError } = await adminClient
+      .from('users')
+      .select('id, full_name, employee_id')
+      .in('id', userIds)
+
+    if (usersError) {
+      console.error('Users error:', usersError)
+    }
+
+    console.log('Users found:', users?.length || 0)
+
+    // Step 5: Get branches data
+    const branchIds = [...new Set(timeEntries?.map(entry => entry.branch_id) || [])]
+    const { data: branches, error: branchesError } = await adminClient
+      .from('branches')
+      .select('id, name')
+      .in('id', branchIds)
+
+    if (branchesError) {
+      console.error('Branches error:', branchesError)
+    }
+
+    console.log('Branches found:', branches?.length || 0)
+
+    // Step 6: Combine data manually
+    const materialsMap = new Map(rawMaterials?.map(material => [material.id, material]) || [])
+    const timeEntriesMap = new Map(timeEntries?.map(entry => [entry.id, entry]) || [])
+    const usersMap = new Map(users?.map(user => [user.id, user]) || [])
+    const branchesMap = new Map(branches?.map(branch => [branch.id, branch]) || [])
+
     // Process material usage data
-    const materialReports = materialUsageData?.map((usage: any) => ({
-      id: usage.id,
-      materialId: usage.material_id,
-      materialName: usage.raw_materials.name,
-      unit: usage.raw_materials.unit,
-      costPerUnit: usage.raw_materials.cost_per_unit,
-      supplier: usage.raw_materials.supplier,
-      quantityUsed: usage.quantity_used,
-      unitCost: usage.unit_cost,
-      totalCost: usage.total_cost,
-      notes: usage.notes,
-      createdAt: usage.created_at,
-      employee: usage.time_entries?.users ? {
-        id: usage.time_entries.users.id,
-        name: usage.time_entries.users.full_name,
-        employeeId: usage.time_entries.users.employee_id
-      } : {
-        id: 'unknown',
-        name: 'ไม่ระบุ',
-        employeeId: 'N/A'
-      },
-      branch: usage.time_entries?.branches ? {
-        id: usage.time_entries.branches.id,
-        name: usage.time_entries.branches.name
-      } : {
-        id: 'unknown',
-        name: 'ไม่ระบุสาขา'
+    const materialReports = materialUsageData?.map((usage: any) => {
+      const material = materialsMap.get(usage.material_id)
+      const timeEntry = timeEntriesMap.get(usage.time_entry_id)
+      const user = timeEntry ? usersMap.get(timeEntry.user_id) : null
+      const branch = timeEntry ? branchesMap.get(timeEntry.branch_id) : null
+
+      return {
+        id: usage.id,
+        materialId: usage.material_id,
+        materialName: material?.name || 'ไม่ระบุวัตถุดิบ',
+        unit: material?.unit || 'N/A',
+        costPerUnit: material?.cost_per_unit || 0,
+        supplier: material?.supplier || 'ไม่ระบุ',
+        quantityUsed: usage.quantity_used,
+        unitCost: usage.unit_cost,
+        totalCost: usage.total_cost,
+        notes: usage.notes,
+        createdAt: usage.created_at,
+        employee: user ? {
+          id: user.id,
+          name: user.full_name,
+          employeeId: user.employee_id
+        } : {
+          id: 'unknown',
+          name: 'ไม่ระบุ',
+          employeeId: 'N/A'
+        },
+        branch: branch ? {
+          id: branch.id,
+          name: branch.name
+        } : {
+          id: 'unknown',
+          name: 'ไม่ระบุสาขา'
+        }
       }
-    })) || []
+    }) || []
+
+    console.log('Combined material reports:', materialReports.length)
 
     // Calculate material breakdown (aggregated by material)
     const materialBreakdown = new Map()

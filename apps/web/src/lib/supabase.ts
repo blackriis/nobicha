@@ -33,14 +33,13 @@ export const createClientComponentClient = () => {
     })
 
     // Create client with enhanced options for better network handling
+    // Note: DO NOT set storage option - let @supabase/ssr handle cookies automatically
     return createBrowserClient<Database>(url, anonKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
         flowType: 'pkce',
-        // Increase timeout for slow networks
-        storage: typeof window !== 'undefined' ? window.localStorage : undefined,
       },
       global: {
         headers: {
