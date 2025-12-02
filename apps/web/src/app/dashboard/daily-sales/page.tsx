@@ -50,7 +50,7 @@ export default function DailySalesPage() {
   if (authLoading) return
 
   if (!user) {
-   router.push('/login/employee')
+   router.push('/login')
    return
   }
 

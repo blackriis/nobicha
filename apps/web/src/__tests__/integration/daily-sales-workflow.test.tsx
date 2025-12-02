@@ -320,7 +320,7 @@ describe('Daily Sales Workflow Integration', () => {
   render(<DailySalesPage />)
 
   await waitFor(() => {
-   expect(mockRouter.push).toHaveBeenCalledWith('/login/employee')
+   expect(mockRouter.push).toHaveBeenCalledWith('/login')
   })
  })
 

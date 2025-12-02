@@ -1,5 +1,6 @@
 /**
  * Enhanced fetch utility with better error handling and retry logic
+ * Updated for Next.js 15.5.2 + Turbopack compatibility
  */
 
 interface FetchOptions extends RequestInit {
@@ -16,7 +17,38 @@ interface FetchError extends Error {
 }
 
 /**
+ * Get base URL for absolute URL conversion
+ * Compatible with Next.js 15.5.2 + Turbopack
+ */
+function getBaseUrl(): string {
+  // Client-side: use window.location.origin
+  if (typeof window !== 'undefined') {
+    return window.location.origin
+  }
+  
+  // Server-side: use environment variable or default
+  return process.env.NEXT_PUBLIC_APP_URL || 
+         process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 
+         'http://localhost:3000'
+}
+
+/**
+ * Convert relative URL to absolute URL for Next.js 15.5.2 compatibility
+ */
+function toAbsoluteUrl(url: string): string {
+  // Already absolute URL
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+  
+  // Relative URL - convert to absolute
+  const baseUrl = getBaseUrl()
+  return `${baseUrl}${url.startsWith('/') ? url : `/${url}`}`
+}
+
+/**
  * Enhanced fetch with timeout and retry logic
+ * Compatible with Next.js 15.5.2 + Turbopack
  */
 export async function fetchWithErrorHandling(
   url: string,
@@ -29,6 +61,9 @@ export async function fetchWithErrorHandling(
     ...fetchOptions
   } = options
 
+  // Convert to absolute URL for Next.js 15.5.2 compatibility
+  const absoluteUrl = toAbsoluteUrl(url)
+
   let lastError: FetchError | null = null
 
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -38,9 +73,15 @@ export async function fetchWithErrorHandling(
       const timeoutId = setTimeout(() => controller.abort(), timeout)
 
       try {
-        const response = await fetch(url, {
+        // Use absolute URL for Next.js 15.5.2 compatibility
+        const response = await fetch(absoluteUrl, {
           ...fetchOptions,
           signal: controller.signal,
+          // Ensure headers are set properly
+          headers: {
+            'Content-Type': 'application/json',
+            ...fetchOptions.headers,
+          },
         })
 
         clearTimeout(timeoutId)
@@ -87,15 +128,31 @@ export async function fetchWithErrorHandling(
         }
 
         // Handle network errors (connection failed, CORS, etc.)
+        // Enhanced error detection for Next.js 15.5.2
         if (
           fetchError instanceof TypeError &&
-          fetchError.message.includes('fetch')
+          (fetchError.message.includes('fetch') || 
+           fetchError.message.includes('Failed to fetch') ||
+           fetchError.message.includes('NetworkError') ||
+           fetchError.message.includes('Network request failed'))
         ) {
           const error: FetchError = new Error(
-            'Network error: Failed to fetch. Please check your internet connection.'
+            `Network error: Failed to fetch ${absoluteUrl}. Please check your internet connection and API server status.`
           ) as FetchError
           error.code = 'NETWORK_ERROR'
           error.cause = fetchError
+
+          // Enhanced logging for debugging
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Fetch error details:', {
+              url: absoluteUrl,
+              originalUrl: url,
+              attempt: attempt + 1,
+              maxRetries: retries,
+              error: fetchError.message,
+              stack: fetchError instanceof Error ? fetchError.stack : undefined
+            })
+          }
 
           if (attempt < retries) {
             lastError = error

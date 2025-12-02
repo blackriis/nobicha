@@ -72,16 +72,16 @@ export function UsageSummary({
  return (
   <div className="space-y-4">
    {/* Summary Cards */}
-   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
     <Card>
-     <CardContent className="p-4">
-      <div className="flex items-center gap-3">
-       <div className="p-2 bg-primary/10 rounded-lg">
-        <Package className="h-5 w-5 text-primary" />
+     <CardContent className="p-3 sm:p-4">
+      <div className="flex items-center gap-2 sm:gap-3">
+       <div className="p-1.5 sm:p-2 bg-primary/10 rounded-lg shrink-0">
+        <Package className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
        </div>
        <div>
-        <div className="text-sm text-muted-foreground">วัตถุดิบทั้งหมด</div>
-        <div className="text-xl font-semibold text-foreground">{materialSummaries.length} รายการ</div>
+        <div className="text-xs sm:text-sm text-muted-foreground">วัตถุดิบทั้งหมด</div>
+        <div className="text-lg sm:text-xl font-semibold text-foreground">{materialSummaries.length} รายการ</div>
        </div>
       </div>
      </CardContent>
@@ -89,14 +89,14 @@ export function UsageSummary({
 
     {showTotal && showCostInfo && (
      <Card>
-      <CardContent className="p-4">
-       <div className="flex items-center gap-3">
-        <div className="p-2 bg-green-100 dark:bg-green-950/50 rounded-lg">
-         <Calculator className="h-5 w-5 text-green-600 dark:text-green-400" />
+      <CardContent className="p-3 sm:p-4">
+       <div className="flex items-center gap-2 sm:gap-3">
+        <div className="p-1.5 sm:p-2 bg-green-100 dark:bg-green-950/50 rounded-lg shrink-0">
+         <Calculator className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 dark:text-green-400" />
         </div>
         <div>
-         <div className="text-sm text-muted-foreground">ต้นทุนรวม</div>
-         <div className="text-xl font-semibold text-green-600 dark:text-green-400">
+         <div className="text-xs sm:text-sm text-muted-foreground">ต้นทุนรวม</div>
+         <div className="text-lg sm:text-xl font-semibold text-green-600 dark:text-green-400">
           {materialUsageService.formatCurrency(materialUsageService.calculateTotalCost(records, userRole))}
          </div>
         </div>
@@ -108,43 +108,53 @@ export function UsageSummary({
 
    {/* Material Details */}
    <Card>
-    <CardHeader>
-     <CardTitle className="text-lg flex items-center gap-2">
-      <Package className="h-5 w-5" />
+    <CardHeader className="pb-3">
+     <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+      <Package className="h-4 w-4 sm:h-5 sm:w-5" />
       รายละเอียดการใช้วัตถุดิบ
      </CardTitle>
     </CardHeader>
     <CardContent>
-     <div className="space-y-3">
+     <div className="space-y-2 sm:space-y-3">
       {materialSummaries.map((summary) => (
        <div
         key={summary.material_id}
-        className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50"
+        className="border rounded-lg overflow-hidden hover:bg-muted/50 transition-colors"
        >
-        <div className="flex-1">
-         <div className="font-medium">{formatMaterialName(summary.material_name)}</div>
-         <div className="text-sm text-gray-500">
-          หน่วย: {formatUnit(summary.unit)}
-          {showCostInfo && (
-           <span> | ราคา: {materialUsageService.formatCurrency(summary.cost_per_unit)} ต่อ {formatUnit(summary.unit)}</span>
-          )}
-          {summary.usage_count > 1 && (
-           <span className="ml-2 text-blue-600">
-            (ใช้ {summary.usage_count} ครั้ง)
-           </span>
-          )}
+        <div className="p-3 sm:p-4">
+         {/* Material Name */}
+         <div className="font-medium text-sm sm:text-base mb-1 text-foreground">
+          {formatMaterialName(summary.material_name)}
          </div>
-        </div>
-        
-        <div className="text-right">
-         <div className="font-medium">
-          {formatQuantity(summary.total_quantity, summary.unit)}
-         </div>
-         {showTotal && showCostInfo && (
-          <div className="text-sm text-green-600 font-semibold">
-           {materialUsageService.formatCurrency(summary.total_cost)}
+
+         {/* Info Row */}
+         <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="flex-1 min-w-0">
+           <div className="text-xs sm:text-sm text-muted-foreground space-y-0.5">
+            <div>หน่วย: {formatUnit(summary.unit)}</div>
+            {showCostInfo && (
+             <div>ราคา: {materialUsageService.formatCurrency(summary.cost_per_unit)} ต่อ {formatUnit(summary.unit)}</div>
+            )}
+            {summary.usage_count > 1 && (
+             <div className="text-primary font-medium">
+              ใช้ {summary.usage_count} ครั้ง
+             </div>
+            )}
+           </div>
           </div>
-         )}
+
+          {/* Quantity Display */}
+          <div className="text-right shrink-0">
+           <div className="text-base sm:text-lg font-semibold text-foreground">
+            {formatQuantity(summary.total_quantity, summary.unit)}
+           </div>
+           {showTotal && showCostInfo && (
+            <div className="text-xs sm:text-sm text-green-600 dark:text-green-400 font-semibold mt-0.5">
+             {materialUsageService.formatCurrency(summary.total_cost)}
+            </div>
+           )}
+          </div>
+         </div>
         </div>
        </div>
       ))}
@@ -155,9 +165,9 @@ export function UsageSummary({
    {/* Timeline Details (if records have timestamps) */}
    {records.length > 1 && (
     <Card>
-     <CardHeader>
-      <CardTitle className="text-lg flex items-center gap-2">
-       <Clock className="h-5 w-5" />
+     <CardHeader className="pb-3">
+      <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+       <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
        ลำดับเวลาการรายงาน
       </CardTitle>
      </CardHeader>
@@ -166,17 +176,17 @@ export function UsageSummary({
        {records
         .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
         .map((record, index) => (
-         <div key={record.id} className="flex items-center gap-3 text-sm">
-          <div className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-semibold">
+         <div key={record.id} className="flex items-center gap-2 sm:gap-3 text-xs sm:text-sm">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 bg-primary/10 text-primary rounded-full flex items-center justify-center font-semibold text-xs sm:text-sm shrink-0">
            {index + 1}
           </div>
-          <div className="flex-1">
-           <span className="font-medium">{formatMaterialName(record.raw_materials.name)}</span>
-           <span className="text-gray-500 ml-2">
+          <div className="flex-1 min-w-0">
+           <div className="font-medium truncate">{formatMaterialName(record.raw_materials.name)}</div>
+           <div className="text-muted-foreground mt-0.5">
             {formatQuantity(record.quantity_used, record.raw_materials.unit)}
-           </span>
+           </div>
           </div>
-          <div className="text-gray-500">
+          <div className="text-muted-foreground text-xs shrink-0">
            {materialUsageService.formatDateShort(record.created_at)}
           </div>
          </div>

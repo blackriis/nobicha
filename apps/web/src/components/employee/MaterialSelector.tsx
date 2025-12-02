@@ -157,57 +157,69 @@ export function MaterialSelector({
    {selectedMaterials.length > 0 && (
     <Card>
      <CardHeader>
-      <CardTitle className="text-lg">วัตถุดิบที่เลือก</CardTitle>
+      <CardTitle className="text-base sm:text-lg">วัตถุดิบที่เลือก</CardTitle>
      </CardHeader>
-     <CardContent className="space-y-4">
+     <CardContent className="space-y-3">
       {selectedMaterials.map((material, index) => {
        const materialInfo = material.material_info || availableMaterials.find(m => m.id === material.material_id)
-       
+
        return (
-        <div key={`${material.material_id}-${index}`} className="flex items-center gap-3 p-3 border border-border rounded-lg bg-card">
-         <div className="flex-1">
-          <div className="font-medium text-foreground">
-           {materialInfo ? formatMaterialName(materialInfo.name) : 'ไม่พบข้อมูลวัตถุดิบ'}
-          </div>
-          {materialInfo && (
-           <div className="text-sm text-muted-foreground">
-            หน่วย: {formatUnit(materialInfo.unit)}
+        <div key={`${material.material_id}-${index}`} className="border border-border rounded-lg bg-card overflow-hidden">
+         {/* Material Info Row */}
+         <div className="flex items-start justify-between gap-2 p-3 bg-muted/30">
+          <div className="flex-1 min-w-0">
+           <div className="font-medium text-foreground text-sm sm:text-base truncate">
+            {materialInfo ? formatMaterialName(materialInfo.name) : 'ไม่พบข้อมูลวัตถุดิบ'}
            </div>
-          )}
-         </div>
-         
-         <div className="w-24">
-          <Label className="sr-only">จำนวน</Label>
-          <Input
-           type="number"
-           min="1"
-           max="9999"
-           step="1"
-           value={material.quantity_used}
-           onChange={(e) => handleQuantityChange(index, e.target.value)}
-           placeholder="จำนวน"
+           {materialInfo && (
+            <div className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+             หน่วย: {formatUnit(materialInfo.unit)}
+            </div>
+           )}
+          </div>
+
+          <Button
+           variant="ghost"
+           size="sm"
+           onClick={() => handleRemoveMaterial(index)}
            disabled={disabled}
-           className="text-right"
-          />
+           className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0 h-8 w-8 p-0"
+          >
+           <X className="h-4 w-4" />
+          </Button>
          </div>
 
-         <div className="text-sm text-muted-foreground min-w-[60px] text-right">
-          {materialInfo && material.quantity_used > 0 
-           ? formatQuantity(material.quantity_used, materialInfo.unit)
-           : '-'
-          }
+         {/* Quantity Input Row */}
+         <div className="flex items-center gap-3 p-3">
+          <div className="flex-1">
+           <Label className="text-xs sm:text-sm text-muted-foreground mb-1.5 block">
+            จำนวนที่ใช้
+           </Label>
+           <Input
+            type="number"
+            min="1"
+            max="9999"
+            step="1"
+            value={material.quantity_used}
+            onChange={(e) => handleQuantityChange(index, e.target.value)}
+            placeholder="ระบุจำนวน"
+            disabled={disabled}
+            className="text-base h-10"
+           />
+          </div>
+
+          <div className="flex-1 text-right">
+           <div className="text-xs sm:text-sm text-muted-foreground mb-1.5">
+            รวม
+           </div>
+           <div className="text-base sm:text-lg font-semibold text-foreground">
+            {materialInfo && material.quantity_used > 0
+             ? formatQuantity(material.quantity_used, materialInfo.unit)
+             : '-'
+            }
+           </div>
+          </div>
          </div>
-
-
-         <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => handleRemoveMaterial(index)}
-          disabled={disabled}
-          className="text-red-600 hover:text-red-700"
-         >
-          <X className="h-4 w-4" />
-         </Button>
         </div>
        )
       })}

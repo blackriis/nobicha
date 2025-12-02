@@ -23,7 +23,7 @@ export function ProtectedRoute({
   if (!loading) {
    // User is not authenticated
    if (!user) {
-    router.push('/login/employee')
+    router.push('/login')
     return
    }
 
