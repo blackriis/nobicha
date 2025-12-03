@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
  variable: "--font-geist-sans",
@@ -31,14 +32,15 @@ export default function RootLayout({
 }: Readonly<{
  children: React.ReactNode;
 }>) {
- return (
-  <html lang="th" suppressHydrationWarning>
-   <body
-    className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-    suppressHydrationWarning={true}
-   >
-    <Providers>{children}</Providers>
-   </body>
-  </html>
- );
+  return (
+   <html lang="th" suppressHydrationWarning>
+    <body
+     className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+     suppressHydrationWarning={true}
+    >
+     <Providers>{children}</Providers>
+     <Analytics />
+    </body>
+   </html>
+  );
 }
