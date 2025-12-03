@@ -81,44 +81,73 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Listen for auth changes
   const { data: { subscription } } = auth.onAuthStateChange(
    async (event, session) => {
+    // Update session first to maintain session state during navigation
     setSession(session)
-    setLoading(false)
     
-    if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED' && !session) {
+    if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
      setUser(null)
      setSession(null)
+     setLoading(false)
+    } else if (event === 'SIGNED_IN' || (event === 'TOKEN_REFRESHED' && session)) {
+     // When signed in or token refreshed, ensure we get user data
+     if (session?.user) {
+      try {
+       const { user: authenticatedUser } = await auth.getUser()
+       setUser(authenticatedUser as AuthUser || null)
+      } catch (error) {
+       // Handle invalid refresh token errors
+       if (error.message?.includes('Invalid Refresh Token') || 
+           error.message?.includes('Refresh Token Not Found') ||
+           error.message?.includes('refresh_token_not_found')) {
+        console.warn('Invalid refresh token during state change - forcing logout')
+        setUser(null)
+        setSession(null)
+        // Clear session
+        await auth.signOut().catch(() => {})
+       } else if (error.message?.includes('Auth session missing') || error.name === 'AuthSessionMissingError') {
+        // Don't force logout immediately - session might be temporarily unavailable during navigation
+        // Keep session state and try to get user later
+        console.warn('Auth session missing during state change - keeping session state')
+        // Keep session state but set user to null temporarily
+        setUser(null)
+       } else {
+        console.warn('Error re-authenticating user during state change:', {
+         userId: session.user.id,
+         error: error instanceof Error ? error.message : 'Unknown error'
+        })
+        // Set user without profile - they can still use the app
+        setUser({ ...session.user, profile: undefined } as AuthUser)
+       }
+      }
+     }
+     setLoading(false)
     } else if (session?.user) {
-     // Re-authenticate user securely when session changes
+     // For other events (like navigation), preserve session and try to get user
+     // Don't clear user immediately - might be a temporary state during navigation
      try {
       const { user: authenticatedUser } = await auth.getUser()
-      setUser(authenticatedUser as AuthUser || null)
+      if (authenticatedUser) {
+       setUser(authenticatedUser as AuthUser || null)
+      }
+      // If getUser fails but session exists, don't clear user immediately
+      // This prevents logout during browser back navigation
      } catch (error) {
-      // Handle invalid refresh token errors
+      // Only clear user if it's a critical auth error
       if (error.message?.includes('Invalid Refresh Token') || 
           error.message?.includes('Refresh Token Not Found') ||
           error.message?.includes('refresh_token_not_found')) {
        console.warn('Invalid refresh token during state change - forcing logout')
        setUser(null)
        setSession(null)
-       // Clear session
        await auth.signOut().catch(() => {})
-      } else if (error.message?.includes('Auth session missing') || error.name === 'AuthSessionMissingError') {
-       console.warn('Auth session missing during state change - forcing logout')
-       setUser(null)
-       setSession(null)
-       // Optionally trigger sign out to clean up
-       await auth.signOut().catch(() => {})
-      } else {
-       console.warn('Error re-authenticating user during state change:', {
-        userId: session.user.id,
-        error: error instanceof Error ? error.message : 'Unknown error'
-       })
-       // Set user without profile - they can still use the app
-       setUser({ ...session.user, profile: undefined } as AuthUser)
       }
+      // For other errors, keep existing user state to prevent logout during navigation
      }
+     setLoading(false)
     } else {
+     // No session - only clear user if we're certain
      setUser(null)
+     setLoading(false)
     }
    }
   )
