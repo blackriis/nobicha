@@ -92,6 +92,18 @@ export function EmployeeForm({
 
  const watchedValues = watch()
  
+ // Update form values when initialData changes (for async loading)
+ useEffect(() => {
+  if (initialData) {
+   setValue('full_name', initialData.full_name || '')
+   setValue('email', initialData.email || '')
+   setValue('home_branch_id', initialData.home_branch_id || '')
+   setValue('hourly_rate', initialData.hourly_rate || 0)
+   setValue('daily_rate', initialData.daily_rate || 0)
+   setValue('is_active', initialData.is_active ?? true)
+  }
+ }, [initialData, setValue])
+ 
  // Handle form submission
  const handleFormSubmit = (data: any) => {
   const submitData = isCreateMode 
@@ -171,20 +183,22 @@ export function EmployeeForm({
          )}
         </div>
 
-        {/* Email */}
-        <div className="space-y-2">
-         <Label htmlFor="email">อีเมล *</Label>
-         <Input
-          id="email"
-          type="email"
-          {...register('email')}
-          placeholder="email@example.com"
-          disabled={isLoading || submitLoading}
-         />
-         {errors.email && (
-          <p className="text-sm text-red-600">{errors.email.message}</p>
-         )}
-        </div>
+        {/* Email (Create mode only) */}
+        {isCreateMode && (
+         <div className="space-y-2">
+          <Label htmlFor="email">อีเมล *</Label>
+          <Input
+           id="email"
+           type="email"
+           {...register('email')}
+           placeholder="email@example.com"
+           disabled={isLoading || submitLoading}
+          />
+          {errors.email && (
+           <p className="text-sm text-red-600">{errors.email.message}</p>
+          )}
+         </div>
+        )}
        </div>
 
        {/* Password (Create mode only) */}
@@ -219,6 +233,12 @@ export function EmployeeForm({
          <p className="text-sm text-gray-500">
           ไม่สามารถแก้ไขอีเมลได้
          </p>
+         {/* Hidden input to register email for validation */}
+         <input
+          type="hidden"
+          {...register('email')}
+          value={initialData.email}
+         />
         </div>
        )}
       </div>

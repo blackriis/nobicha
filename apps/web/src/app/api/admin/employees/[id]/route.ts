@@ -155,6 +155,7 @@ export async function GET(
     const employeeData = employee as any
     const formattedEmployee = {
       ...employeeData,
+      home_branch_id: employeeData.branch_id || '', // Map branch_id to home_branch_id for form compatibility
       branch_name: branchData?.name || null,
       branches: branchData?.name || null
     }
@@ -163,6 +164,7 @@ export async function GET(
       id: formattedEmployee.id,
       email: formattedEmployee.email,
       branch_id: formattedEmployee.branch_id,
+      home_branch_id: formattedEmployee.home_branch_id,
       branch_name: formattedEmployee.branch_name,
       branches: formattedEmployee.branches
     })
@@ -278,12 +280,15 @@ export async function PUT(
       }, { status: 409 })
     }
 
+    // Map home_branch_id to branch_id for database compatibility
+    const branchId = updateData.home_branch_id || updateData.branch_id
+
     // Check if branch exists (if branch_id is provided)
-    if (updateData.branch_id) {
+    if (branchId) {
       const { data: branch } = await adminClient
         .from('branches')
         .select('id')
-        .eq('id', updateData.branch_id)
+        .eq('id', branchId)
         .single()
 
       if (!branch) {
@@ -303,9 +308,9 @@ export async function PUT(
       is_active: updateData.is_active !== undefined ? updateData.is_active : true
     }
 
-    // Add branch_id if provided
-    if (updateData.branch_id) {
-      updateFields.branch_id = updateData.branch_id
+    // Add branch_id if provided (map from home_branch_id or branch_id)
+    if (branchId) {
+      updateFields.branch_id = branchId
     }
 
     // Add hourly_rate and daily_rate if provided
@@ -368,6 +373,7 @@ export async function PUT(
     const employeeData = updatedEmployee as any
     const formattedEmployee = {
       ...employeeData,
+      home_branch_id: employeeData.branch_id || '', // Map branch_id to home_branch_id for form compatibility
       branch_name: branchData?.name || null,
       branches: branchData?.name || null
     }
@@ -380,6 +386,139 @@ export async function PUT(
 
   } catch (error) {
     console.error('Unexpected error in update employee API:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: employeeId } = await params
+
+    // Validate UUID format
+    if (!isValidUUID(employeeId)) {
+      return NextResponse.json(
+        { error: 'Invalid employee ID format' },
+        { status: 400 }
+      )
+    }
+
+    // Rate limiting
+    const rateLimitResult = await authRateLimiter.checkLimit(request)
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429 }
+      )
+    }
+
+    // Authentication check - support both Bearer token and cookie-based auth
+    const authHeader = request.headers.get('authorization')
+    let user = null
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      // Use bearer token authentication (for backward compatibility)
+      const token = authHeader.replace('Bearer ', '')
+      const tempSupabase = await createSupabaseServerClient()
+      const { data: userData, error: tokenError } = await tempSupabase.auth.getUser(token)
+      if (tokenError || !userData.user) {
+        return NextResponse.json(
+          { error: 'ไม่พบการยืนยันตัวตน' },
+          { status: 401 }
+        )
+      }
+      user = userData.user
+    } else {
+      // Fallback to cookie-based auth (preferred for production)
+      const supabase = await createClient()
+      const { data: { user: cookieUser }, error: authError } = await supabase.auth.getUser()
+      if (authError || !cookieUser) {
+        return NextResponse.json(
+          { error: 'ไม่พบการยืนยันตัวตน' },
+          { status: 401 }
+        )
+      }
+      user = cookieUser
+    }
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'ไม่พบการยืนยันตัวตน' },
+        { status: 401 }
+      )
+    }
+
+    // Get user profile and check role using service role client to bypass RLS
+    const adminClient = await createSupabaseServerClient()
+    const { data: userProfile } = await adminClient
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (!userProfile || (userProfile as any).role !== 'admin') {
+      return NextResponse.json(
+        { error: 'ไม่มีสิทธิ์เข้าถึงข้อมูลนี้' },
+        { status: 403 }
+      )
+    }
+
+    // Check if employee exists
+    const { data: employee, error: fetchError } = await adminClient
+      .from('users')
+      .select('id, email, full_name, role')
+      .eq('id', employeeId)
+      .single()
+
+    if (fetchError || !employee) {
+      return NextResponse.json(
+        { error: 'ไม่พบข้อมูลพนักงานรายการนี้' },
+        { status: 404 }
+      )
+    }
+
+    // Prevent deleting admin users
+    if ((employee as any).role === 'admin') {
+      return NextResponse.json(
+        { error: 'ไม่สามารถลบผู้ดูแลระบบได้' },
+        { status: 403 }
+      )
+    }
+
+    // Prevent deleting yourself
+    if (employee.id === user.id) {
+      return NextResponse.json(
+        { error: 'ไม่สามารถลบบัญชีของตัวเองได้' },
+        { status: 403 }
+      )
+    }
+
+    // Delete employee from database
+    const { error: deleteError } = await adminClient
+      .from('users')
+      .delete()
+      .eq('id', employeeId)
+
+    if (deleteError) {
+      console.error('Delete employee error:', deleteError)
+      return NextResponse.json({
+        success: false,
+        error: 'ไม่สามารถลบพนักงานได้'
+      }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'ลบพนักงานเรียบร้อยแล้ว'
+    })
+
+  } catch (error) {
+    console.error('Unexpected error in delete employee API:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

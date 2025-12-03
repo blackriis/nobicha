@@ -12,6 +12,23 @@ import {
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+ DropdownMenu,
+ DropdownMenuContent,
+ DropdownMenuItem,
+ DropdownMenuSeparator,
+ DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+ AlertDialog,
+ AlertDialogAction,
+ AlertDialogCancel,
+ AlertDialogContent,
+ AlertDialogDescription,
+ AlertDialogFooter,
+ AlertDialogHeader,
+ AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { 
  MoreHorizontal,
  ArrowUpDown,
@@ -30,6 +47,7 @@ interface EmployeeTableProps {
  onSort: (field: SearchFilters['sortBy']) => void
  sortBy: SearchFilters['sortBy']
  sortOrder: SearchFilters['sortOrder']
+ onDelete?: (employeeId: string) => Promise<void>
 }
 
 export function EmployeeTable({ 
@@ -37,9 +55,13 @@ export function EmployeeTable({
  loading, 
  onSort, 
  sortBy, 
- sortOrder 
+ sortOrder,
+ onDelete
 }: EmployeeTableProps) {
  const router = useRouter()
+ const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+ const [selectedEmployee, setSelectedEmployee] = useState<EmployeeListItem | null>(null)
+ const [deleting, setDeleting] = useState(false)
  
  const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('th-TH', {
@@ -96,6 +118,27 @@ export function EmployeeTable({
 
  const handleViewEmployee = (employeeId: string) => {
   router.push(`/admin/employees/${employeeId}`)
+ }
+
+ // Delete handlers
+ const handleDeleteClick = (employee: EmployeeListItem) => {
+  setSelectedEmployee(employee)
+  setDeleteDialogOpen(true)
+ }
+
+ const handleDeleteConfirm = async () => {
+  if (!selectedEmployee || !onDelete) return
+
+  setDeleting(true)
+  try {
+   await onDelete(selectedEmployee.id)
+   setDeleteDialogOpen(false)
+   setSelectedEmployee(null)
+  } catch (error) {
+   console.error('Failed to delete employee:', error)
+  } finally {
+   setDeleting(false)
+  }
  }
 
  if (loading) {
@@ -253,20 +296,60 @@ export function EmployeeTable({
          >
           <Edit className="h-4 w-4" />
          </Button>
-         <Button 
-          variant="ghost" 
-          size="sm" 
-          className="h-8 w-8 p-0"
-          title="ตัวเลือกเพิ่มเติม"
-         >
-          <MoreHorizontal className="h-4 w-4" />
-         </Button>
+         <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+           <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 w-8 p-0"
+            title="ตัวเลือกเพิ่มเติม"
+           >
+            <MoreHorizontal className="h-4 w-4" />
+           </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+           <DropdownMenuItem
+            variant="destructive"
+            onClick={() => handleDeleteClick(employee)}
+            className="text-red-600 focus:text-red-600 focus:bg-red-50"
+           >
+            <Trash2 className="h-4 w-4 mr-2" />
+            ลบพนักงาน
+           </DropdownMenuItem>
+          </DropdownMenuContent>
+         </DropdownMenu>
         </div>
        </TableCell>
       </TableRow>
      ))}
     </TableBody>
    </Table>
+   
+   {/* Delete Confirmation Dialog */}
+   <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+    <AlertDialogContent>
+     <AlertDialogHeader>
+      <AlertDialogTitle>ยืนยันการลบพนักงาน</AlertDialogTitle>
+      <AlertDialogDescription>
+       คุณแน่ใจหรือไม่ว่าต้องการลบพนักงาน "{selectedEmployee?.full_name}"?
+       <br />
+       <span className="text-red-600 font-medium mt-2 block">
+        การกระทำนี้ไม่สามารถยกเลิกได้
+       </span>
+      </AlertDialogDescription>
+     </AlertDialogHeader>
+     <AlertDialogFooter>
+      <AlertDialogCancel disabled={deleting}>ยกเลิก</AlertDialogCancel>
+      <AlertDialogAction
+       onClick={handleDeleteConfirm}
+       disabled={deleting}
+       className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+      >
+       {deleting ? 'กำลังลบ...' : 'ลบ'}
+      </AlertDialogAction>
+     </AlertDialogFooter>
+    </AlertDialogContent>
+   </AlertDialog>
   </div>
  )
 }

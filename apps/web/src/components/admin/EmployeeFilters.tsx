@@ -11,8 +11,15 @@ import {
  SelectValue,
 } from '@/components/ui/select'
 import { Filter, X, Users, Building2 } from 'lucide-react'
-import { branchService } from '@/lib/services'
-import { Branch } from '@packages/database'
+
+interface Branch {
+  id: string
+  name: string
+  address: string
+  latitude: number
+  longitude: number
+  created_at: string
+}
 
 interface EmployeeFiltersProps {
  filters: {
@@ -37,12 +44,25 @@ export function EmployeeFilters({ filters, onFilterChange }: EmployeeFiltersProp
 
  const loadBranches = async () => {
   try {
-   const branchResult = await branchService.getAllBranches()
-   if (branchResult.success && branchResult.data) {
-    setBranches(branchResult.data)
+   setLoading(true)
+   const response = await fetch('/api/admin/branches', {
+    credentials: 'include',
+    headers: {
+     'Content-Type': 'application/json'
+    }
+   })
+
+   if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+    throw new Error(errorData.error || `HTTP ${response.status}`)
+   }
+
+   const result = await response.json()
+   
+   if (result.success && result.branches) {
+    setBranches(result.branches)
    } else {
-    console.error('Failed to load branches:', branchResult.error)
-    setBranches([])
+    throw new Error('Invalid response format')
    }
   } catch (error) {
    console.error('Failed to load branches:', error)

@@ -149,6 +149,35 @@ export function EmployeeListPage() {
   router.push('/admin/employees/add')
  }
 
+ // Delete handler
+ const handleDeleteEmployee = async (employeeId: string) => {
+  if (!session?.access_token) {
+   setError('ไม่พบการยืนยันตัวตน กรุณาเข้าสู่ระบบใหม่')
+   return
+  }
+
+  try {
+   const response = await fetch(`/api/admin/employees/${employeeId}`, {
+    method: 'DELETE',
+    headers: {
+     'Authorization': `Bearer ${session.access_token}`,
+     'Content-Type': 'application/json'
+    }
+   })
+
+   if (!response.ok) {
+    const errorData = await response.json()
+    throw new Error(errorData.error || 'เกิดข้อผิดพลาดในการลบพนักงาน')
+   }
+
+   // Refresh employee list after successful deletion
+   await fetchEmployees()
+  } catch (err) {
+   console.error('Failed to delete employee:', err)
+   setError(err instanceof Error ? err.message : 'เกิดข้อผิดพลาดในการลบพนักงาน')
+  }
+ }
+
  return (
   <div className="space-y-6">
    {/* Header */}
@@ -228,6 +257,7 @@ export function EmployeeListPage() {
       onSort={handleSort}
       sortBy={filters.sortBy}
       sortOrder={filters.sortOrder}
+      onDelete={handleDeleteEmployee}
      />
      
      {/* Pagination */}

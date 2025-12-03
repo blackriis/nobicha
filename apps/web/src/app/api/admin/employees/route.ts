@@ -56,6 +56,7 @@ async function getEmployeeListWithServiceRole(
 
     // Apply branch filter
     if (branchId) {
+      console.log('🏢 Filtering by branch ID:', branchId)
       query = query.eq('branch_id', branchId)
     }
 
@@ -84,18 +85,40 @@ async function getEmployeeListWithServiceRole(
       throw new Error(`Failed to fetch employees: ${error.message}`)
     }
 
+    // Get unique branch IDs from users
+    const branchIds = [...new Set((data || []).map((user: any) => user.branch_id).filter(Boolean))]
+    
+    // Fetch branches data separately
+    let branchesMap: Map<string, { name: string; address: string }> = new Map()
+    if (branchIds.length > 0) {
+      const { data: branchesData, error: branchesError } = await supabaseAdmin
+        .from('branches')
+        .select('id, name, address')
+        .in('id', branchIds)
+      
+      if (!branchesError && branchesData) {
+        branchesMap = new Map(
+          branchesData.map((branch: any) => [branch.id, { name: branch.name, address: branch.address }])
+        )
+      }
+    }
+
     // Transform data to match EmployeeListItem interface
-    const employees: EmployeeListItem[] = (data || []).map((user: any) => ({
-      id: user.id,
-      email: user.email,
-      full_name: user.full_name,
-      role: user.role,
-      branch_id: user.branch_id,
-      is_active: user.is_active,
-      created_at: user.created_at,
-      branch_name: user.branch_id || 'ไม่ระบุสาขา',
-      branch_address: ''
-    }))
+    const employees: EmployeeListItem[] = (data || []).map((user: any) => {
+      const branch = user.branch_id ? branchesMap.get(user.branch_id) : null
+      
+      return {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        role: user.role,
+        branch_id: user.branch_id,
+        is_active: user.is_active,
+        created_at: user.created_at,
+        branch_name: branch?.name || 'ไม่ระบุสาขา',
+        branch_address: branch?.address || ''
+      }
+    })
 
     return {
       data: employees,
@@ -149,6 +172,8 @@ export async function GET(request: NextRequest) {
       sortBy: (searchParams.get('sortBy') as 'full_name' | 'email' | 'created_at') || 'created_at',
       sortOrder: (searchParams.get('sortOrder') as 'asc' | 'desc') || 'desc'
     }
+
+    console.log('🔍 Employee list filters:', filters)
 
     const pagination: PaginationParams = {
       page: parseInt(searchParams.get('page') || '1', 10),
