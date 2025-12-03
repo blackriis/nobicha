@@ -198,6 +198,9 @@ export function validateUserRole(role: string): ValidationResult {
 }
 
 // Comprehensive auth validation (accepts both email and username)
+// NOTE: Password validation is NOT performed here for sign-in.
+// Supabase will validate the password during authentication.
+// Password validation should only be used for sign-up or password reset.
 export function validateSignInData(identifier: string, password: string): AuthValidationResult {
   const errors: string[] = []
 
@@ -206,9 +209,10 @@ export function validateSignInData(identifier: string, password: string): AuthVa
     errors.push('Username or email is required')
   }
 
-  // Validate password
-  const passwordValidation = validatePassword(password)
-  errors.push(...passwordValidation.errors)
+  // Check if password is provided (basic check only, no format validation)
+  if (!password || !password.trim()) {
+    errors.push('Password is required')
+  }
 
   // If there are errors, return early
   if (errors.length > 0) {
