@@ -191,20 +191,31 @@ export async function GET(request: NextRequest) {
       // Total sales for date range
       // Use timezone-aware date range that covers the entire day in Thailand timezone (UTC+7)
       (async () => {
-        // Start of day in Thailand timezone (00:00:00 Asia/Bangkok)
-        const startOfDay = new Date(computedStartDate + 'T00:00:00+07:00')
-        // End of day in Thailand timezone (23:59:59.999 Asia/Bangkok)
-        const endOfDay = new Date(computedEndDate + 'T23:59:59.999+07:00')
+        // Calculate UTC times that correspond to start/end of day in Thailand timezone (UTC+7)
+        // Start of day in Thailand (00:00:00 UTC+7) = 17:00:00 UTC of previous day
+        // End of day in Thailand (23:59:59.999 UTC+7) = 16:59:59.999 UTC of same day
+        const startOfDayThailand = new Date(computedStartDate + 'T00:00:00+07:00')
+        const endOfDayThailand = new Date(computedEndDate + 'T23:59:59.999+07:00')
+        
+        // Convert to ISO strings (which are in UTC) - this correctly represents the Thailand day boundaries
+        const startOfDayUTC = startOfDayThailand.toISOString()
+        const endOfDayUTC = endOfDayThailand.toISOString()
         
         let query = adminClient
           .from('sales_reports')
           .select('total_sales')
-          .gte('created_at', startOfDay.toISOString())
-          .lte('created_at', endOfDay.toISOString())
+          .gte('created_at', startOfDayUTC)
+          .lte('created_at', endOfDayUTC)
         if (branchId) {
           query = query.eq('branch_id', branchId)
         }
-        return query
+        const result = await query
+        if (result.error) {
+          return { data: null, error: result.error, count: 0 }
+        }
+        // Return consistent structure matching other query results
+        // Include count property for consistency with other parallel queries
+        return { data: result.data || null, error: null, count: result.data?.length || 0 }
       })(),
       
       // Total raw materials count
@@ -216,11 +227,26 @@ export async function GET(request: NextRequest) {
       // Recent material usage (for today's cost)
       // Note: material_usage doesn't have branch_id directly, need to join through time_entries
       // If branchId is specified, we'll handle it separately after getting time entries
-      branchId ? Promise.resolve({ data: [], error: null }) : adminClient
+      branchId ? Promise.resolve({ data: [], error: null }) : (async () => {
+        // Use timezone-aware date range that covers the entire day in Thailand timezone (UTC+7)
+        const startOfDayThailand = new Date(computedStartDate + 'T00:00:00+07:00')
+        const endOfDayThailand = new Date(computedEndDate + 'T23:59:59.999+07:00')
+        
+        // Convert to ISO strings (which are in UTC) - this correctly represents the Thailand day boundaries
+        const startOfDayUTC = startOfDayThailand.toISOString()
+        const endOfDayUTC = endOfDayThailand.toISOString()
+        
+        const result = await adminClient
         .from('material_usage')
         .select('total_cost')
-        .gte('created_at', computedStartDate + 'T00:00:00.000Z')
-        .lte('created_at', computedEndDate + 'T23:59:59.999Z')
+          .gte('created_at', startOfDayUTC)
+          .lte('created_at', endOfDayUTC)
+        
+        if (result.error) {
+          return { data: [], error: result.error }
+        }
+        return { data: result.data || [], error: null }
+      })()
     ])
 
     // Process total sales calculation
@@ -230,13 +256,21 @@ export async function GET(request: NextRequest) {
     // If branchId is specified, we need to get time_entry_ids first, then query material_usage
     let totalMaterialUsageCost = 0
     if (branchId) {
+      // Use timezone-aware date range that covers the entire day in Thailand timezone (UTC+7)
+      const startOfDayThailand = new Date(computedStartDate + 'T00:00:00+07:00')
+      const endOfDayThailand = new Date(computedEndDate + 'T23:59:59.999+07:00')
+      
+      // Convert to ISO strings (which are in UTC) - this correctly represents the Thailand day boundaries
+      const startOfDayUTC = startOfDayThailand.toISOString()
+      const endOfDayUTC = endOfDayThailand.toISOString()
+      
       // Get time entries for the specified branch
       const { data: branchTimeEntries, error: timeEntriesError } = await adminClient
         .from('time_entries')
         .select('id')
         .eq('branch_id', branchId)
-        .gte('check_in_time', computedStartDate + 'T00:00:00.000Z')
-        .lte('check_in_time', computedEndDate + 'T23:59:59.999Z')
+        .gte('check_in_time', startOfDayUTC)
+        .lte('check_in_time', endOfDayUTC)
       
       console.log('📊 Branch time entries:', {
         branchId,
@@ -246,12 +280,13 @@ export async function GET(request: NextRequest) {
       
       if (branchTimeEntries && branchTimeEntries.length > 0) {
         const timeEntryIds = branchTimeEntries.map(entry => entry.id)
+        // Use the same timezone-aware date range for material_usage query
         const { data: branchMaterialUsage, error: materialError } = await adminClient
           .from('material_usage')
           .select('total_cost')
           .in('time_entry_id', timeEntryIds)
-          .gte('created_at', computedStartDate + 'T00:00:00.000Z')
-          .lte('created_at', computedEndDate + 'T23:59:59.999Z')
+          .gte('created_at', startOfDayUTC)
+          .lte('created_at', endOfDayUTC)
         
         console.log('📊 Branch material usage:', {
           branchId,
