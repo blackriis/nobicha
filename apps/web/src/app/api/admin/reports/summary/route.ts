@@ -189,16 +189,18 @@ export async function GET(request: NextRequest) {
       })(),
       
       // Total sales for date range
-      (() => {
+      // Use timezone-aware date range that covers the entire day in Thailand timezone (UTC+7)
+      (async () => {
+        // Start of day in Thailand timezone (00:00:00 Asia/Bangkok)
+        const startOfDay = new Date(computedStartDate + 'T00:00:00+07:00')
+        // End of day in Thailand timezone (23:59:59.999 Asia/Bangkok)
+        const endOfDay = new Date(computedEndDate + 'T23:59:59.999+07:00')
+        
         let query = adminClient
           .from('sales_reports')
           .select('total_sales')
-          .filter('created_at', 'gte', 
-            dateRange === 'today' ? now.toISOString().split('T')[0] :
-            dateRange === 'week' ? new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString() :
-            dateRange === 'month' ? new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString() :
-            startDate || now.toISOString().split('T')[0]
-          )
+          .gte('created_at', startOfDay.toISOString())
+          .lte('created_at', endOfDay.toISOString())
         if (branchId) {
           query = query.eq('branch_id', branchId)
         }
