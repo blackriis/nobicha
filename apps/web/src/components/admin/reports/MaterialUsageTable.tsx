@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -51,11 +51,22 @@ export function MaterialUsageTable({ materials, isLoading, selectedBranchId }: M
  const [currentPage, setCurrentPage] = useState(1)
  const itemsPerPage = 10
 
+ // Reset to first page when branch filter changes
+ useEffect(() => {
+  setCurrentPage(1)
+ }, [selectedBranchId])
+
  // Client-side branch filtering
+ // Filter materials that are used in the selected branch
  const branchFilteredMaterials = selectedBranchId
-  ? materials.filter(material =>
-    material.branches.includes(selectedBranchId) || material.branches.length === 0
-   )
+  ? materials.filter(material => {
+    // Material must have the selected branch in its branches array
+    // Exclude materials with empty branches array (shouldn't happen but safety check)
+    if (!material.branches || material.branches.length === 0) {
+     return false
+    }
+    return material.branches.includes(selectedBranchId)
+   })
   : materials
 
  // Filter materials based on search term
@@ -142,7 +153,7 @@ export function MaterialUsageTable({ materials, isLoading, selectedBranchId }: M
  }
 
  return (
-  <Card className="border-0 hover: duration-300">
+  <Card className="border-0">
    <CardHeader>
     <div className="flex items-center justify-between">
      <div>
@@ -170,7 +181,7 @@ export function MaterialUsageTable({ materials, isLoading, selectedBranchId }: M
         placeholder="ค้นหาวัตถุดิบ..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        className="pl-10 w-full sm:w-64 focus:ring-2 focus:ring-blue-500 transition-all"
+        className="pl-10 w-full sm:w-64 focus:ring-2 focus:ring-blue-500"
        />
       </div>
      </div>

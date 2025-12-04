@@ -197,7 +197,21 @@ export async function GET(request: NextRequest) {
     const branchesMap = new Map(branches?.map(branch => [branch.id, branch]) || [])
 
     // Process material usage data
-    const materialReports = materialUsageData?.map((usage: any) => {
+    // First, filter material usage by time entries if branchId is specified
+    const filteredMaterialUsageData = branchId
+      ? materialUsageData?.filter((usage: any) => {
+          const timeEntry = timeEntriesMap.get(usage.time_entry_id)
+          return timeEntry && timeEntry.branch_id === branchId
+        }) || []
+      : materialUsageData || []
+
+    console.log('Filtered material usage by branch:', {
+      originalCount: materialUsageData?.length || 0,
+      filteredCount: filteredMaterialUsageData.length,
+      branchId
+    })
+
+    const materialReports = filteredMaterialUsageData.map((usage: any) => {
       const material = materialsMap.get(usage.material_id)
       const timeEntry = timeEntriesMap.get(usage.time_entry_id)
       const user = timeEntry ? usersMap.get(timeEntry.user_id) : null
@@ -232,7 +246,7 @@ export async function GET(request: NextRequest) {
           name: 'ไม่ระบุสาขา'
         }
       }
-    }) || []
+    })
 
     console.log('Combined material reports:', materialReports.length)
 
@@ -261,14 +275,30 @@ export async function GET(request: NextRequest) {
     })
 
     // Convert material breakdown to array and format
+    // If branchId filter is applied, only include that branch in branches array
     const materialSummary = Array.from(materialBreakdown.values())
-      .map(material => ({
-        ...material,
-        branches: Array.from(material.branches),
-        employees: Array.from(material.employees),
-        averageCostPerUsage: material.usageCount > 0 ? Math.round(material.totalCost / material.usageCount * 100) / 100 : 0,
-        averageQuantityPerUsage: material.usageCount > 0 ? Math.round(material.totalQuantity / material.usageCount * 100) / 100 : 0
-      }))
+      .map(material => {
+        const branchesArray = Array.from(material.branches)
+        // If branchId filter is applied, filter branches to only include the selected branch
+        const filteredBranches = branchId 
+          ? branchesArray.filter(branchIdInArray => branchIdInArray === branchId)
+          : branchesArray
+        
+        return {
+          ...material,
+          branches: filteredBranches,
+          employees: Array.from(material.employees),
+          averageCostPerUsage: material.usageCount > 0 ? Math.round(material.totalCost / material.usageCount * 100) / 100 : 0,
+          averageQuantityPerUsage: material.usageCount > 0 ? Math.round(material.totalQuantity / material.usageCount * 100) / 100 : 0
+        }
+      })
+      .filter(material => {
+        // If branchId filter is applied, only include materials that have the selected branch
+        if (branchId) {
+          return material.branches.length > 0 && material.branches.includes(branchId)
+        }
+        return true
+      })
       .sort((a, b) => b.totalCost - a.totalCost)
 
     // Calculate branch breakdown (materials by branch)

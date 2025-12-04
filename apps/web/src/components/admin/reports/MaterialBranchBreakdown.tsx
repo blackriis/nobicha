@@ -43,8 +43,7 @@ export function MaterialBranchBreakdown({
       "border border-border/50",
       designTokens.borderRadius.xl,
       designTokens.components.card.padding.default,
-      "overflow-hidden",
-      designTokens.animations.transition.default
+      "overflow-hidden"
      )}>
       <div className={cn(
        "absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-primary/10 to-transparent",
@@ -92,16 +91,13 @@ export function MaterialBranchBreakdown({
     "border-2 border-dashed border-border/50",
     designTokens.borderRadius.full,
     designTokens.components.card.padding.lg,
-    "text-center",
-    "hover:border-border/80 hover:bg-muted/10",
-    designTokens.animations.transition.slow
+    "text-center"
    )}>
     <div className="max-w-md mx-auto">
      <div className={cn(
       "w-20 h-20 bg-gradient-to-br from-muted/50 to-muted/20",
       designTokens.borderRadius.xl,
-      "flex items-center justify-center mx-auto mb-6",
-      designTokens.animations.transition.default
+      "flex items-center justify-center mx-auto mb-6"
      )}>
       <Building2 className="h-10 w-10 text-muted-foreground/60" />
      </div>
@@ -147,8 +143,6 @@ export function MaterialBranchBreakdown({
        "border border-border/30 cursor-pointer overflow-hidden",
        designTokens.borderRadius.xl,
        designTokens.components.card.padding.default,
-       "hover:shadow-xl hover:shadow-primary/5 hover:border-primary/30 hover:-translate-y-1",
-       designTokens.animations.transition.slow,
        isSelected && "ring-2 ring-primary/50 ring-offset-2 ring-offset-background shadow-lg shadow-primary/10"
       )}
       role="button"
@@ -166,8 +160,7 @@ export function MaterialBranchBreakdown({
       <div className={cn(
        "absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-primary/8 to-transparent",
        designTokens.borderRadius.full,
-       "-mr-12 -mt-12 opacity-0 group-hover:opacity-100",
-       designTokens.animations.transition.default
+       "-mr-12 -mt-12"
       )}></div>
       {isSelected && (
        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-primary/2 pointer-events-none"></div>
@@ -179,14 +172,12 @@ export function MaterialBranchBreakdown({
         <div className={cn(
          "w-12 h-12 flex items-center justify-center",
          designTokens.borderRadius.xl,
-         designTokens.animations.transition.default,
          isSelected
-          ? "bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/20 scale-110"
-          : "bg-gradient-to-br from-primary/10 to-primary/5 group-hover:scale-105 group-hover:from-primary/15"
+          ? "bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/20"
+          : "bg-gradient-to-br from-primary/10 to-primary/5"
         )}>
          <Building2 className={cn(
           "h-6 w-6",
-          designTokens.animations.transition.default,
           isSelected ? "text-white" : "text-primary"
          )} />
         </div>
@@ -195,8 +186,7 @@ export function MaterialBranchBreakdown({
           <h3 className={cn(
            designTokens.typography.fontSize.lg,
            designTokens.typography.fontWeight.semibold,
-           designTokens.animations.transition.default,
-           isSelected ? "text-foreground" : "text-foreground group-hover:text-primary"
+           isSelected ? "text-foreground" : "text-foreground"
           )}>
            {branch.branchName}
           </h3>
@@ -219,17 +209,14 @@ export function MaterialBranchBreakdown({
       <div className={cn("relative space-y-4", designTokens.spacing[4])}>
        <div className={cn(
         "p-6 border border-border/20 bg-gradient-to-br from-green-50/10 to-green-50/0",
-        designTokens.borderRadius.xl,
-        "group-hover:border-green-200/40 group-hover:from-green-50/15 group-hover:to-green-50/5",
-        designTokens.animations.transition.default
+        designTokens.borderRadius.xl
        )}>
         <div className={cn("flex items-center justify-between", designTokens.spacing[4])}>
          <div className={cn("flex items-center gap-3", designTokens.spacing[3])}>
           <div className={cn(
            "w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 shadow-lg",
            designTokens.borderRadius.xl,
-           "flex items-center justify-center group-hover:scale-110",
-           designTokens.animations.transition.default
+           "flex items-center justify-center"
           )}>
            <DollarSign className="h-7 w-7 text-white" />
           </div>
@@ -279,8 +266,7 @@ export function MaterialBranchBreakdown({
           <div 
            className={cn(
             "bg-gradient-to-r from-green-500 to-green-600 h-3",
-            designTokens.borderRadius.full,
-            designTokens.animations.transition.slow
+            designTokens.borderRadius.full
            )} 
            style={{ width: `${(branch.totalCost / maxCost) * 100}%` }}
           ></div>

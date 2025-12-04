@@ -33,10 +33,7 @@ export function MaterialDetailSummary({ summary, isLoading }: MaterialDetailSumm
     {Array.from({ length: 6 }).map((_, index) => (
      <div key={index} className={cn(
       "relative bg-gradient-to-br from-background via-background to-muted/20 backdrop-blur-sm",
-      "border border-border/50 rounded-2xl p-6 overflow-hidden",
-      "hover:shadow-lg hover:shadow-primary/5 hover:border-primary/20",
-      "transition-all duration-300 ease-out",
-      designTokens.animations.transition.default
+      "border border-border/50 rounded-2xl p-6 overflow-hidden"
      )}>
       <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-primary/10 to-transparent rounded-full -mr-10 -mt-10"></div>
       <div className="relative">
@@ -56,23 +53,19 @@ export function MaterialDetailSummary({ summary, isLoading }: MaterialDetailSumm
   return (
    <div className={cn(
     "relative bg-gradient-to-br from-background via-background to-muted/30 backdrop-blur-sm",
-    "border-2 border-dashed border-border/50 rounded-3xl p-12 text-center",
-    "hover:border-border/80 hover:bg-muted/10",
-    "transition-all duration-500 ease-out",
-    designTokens.animations.transition.default
+    "border-2 border-dashed border-border/50 rounded-3xl p-12 text-center"
    )}>
     <div className="max-w-md mx-auto">
      <div className={cn(
       "w-20 h-20 bg-gradient-to-br from-muted/50 to-muted/20 rounded-2xl",
-      "flex items-center justify-center mx-auto mb-6",
-      designTokens.animations.transition.default
+      "flex items-center justify-center mx-auto mb-6"
      )}>
       <Package className="h-10 w-10 text-muted-foreground/60" />
      </div>
      <h3 className="text-lg font-medium text-foreground mb-3">ไม่มีข้อมูลวัตถุดิบ</h3>
      <p className="text-muted-foreground mb-6">ไม่พบข้อมูลการใช้วัตถุดิบในช่วงเวลาที่เลือก</p>
      <details className="text-xs text-muted-foreground/60 bg-muted/20 rounded-xl p-4 max-w-sm mx-auto">
-      <summary className="cursor-pointer font-medium mb-2 hover:text-foreground transition-colors">ข้อมูล Debug</summary>
+      <summary className="cursor-pointer font-medium mb-2 hover:text-foreground">ข้อมูล Debug</summary>
       <div className="text-left space-y-1">
        <p>• ตรวจสอบ Browser Console</p>
        <p>• ตรวจสอบ Network Tab</p>
@@ -138,38 +131,27 @@ export function MaterialDetailSummary({ summary, isLoading }: MaterialDetailSumm
      return (
       <div key={index} className={cn(
        "group relative bg-gradient-to-br from-background via-background to-muted/10 backdrop-blur-sm",
-       "border border-border/30 rounded-2xl p-6 overflow-hidden",
-       "hover:shadow-xl hover:shadow-primary/5 hover:border-primary/30 hover:-translate-y-1",
-       "transition-all duration-300 ease-out",
-       designTokens.animations.transition.default
+       "border border-border/30 rounded-2xl p-6 overflow-hidden"
       )}>
        {/* Decorative gradient */}
-       <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-primary/8 to-transparent rounded-full -mr-12 -mt-12 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+       <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-primary/8 to-transparent rounded-full -mr-12 -mt-12"></div>
        
        {/* Icon background */}
        <div className={cn(
         "w-12 h-12 bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl",
-        "flex items-center justify-center mb-4",
-        "group-hover:scale-110 group-hover:from-primary/15 group-hover:to-primary/8",
-        "transition-all duration-300 ease-out"
+        "flex items-center justify-center mb-4"
        )}>
-        <IconComponent className={cn("h-6 w-6 text-primary", designTokens.animations.transition.default)} />
+        <IconComponent className="h-6 w-6 text-primary" />
        </div>
        
        {/* Title */}
-       <h3 className={cn(
-        "text-sm font-medium text-muted-foreground mb-3",
-        "group-hover:text-foreground transition-colors duration-300"
-       )}>
+       <h3 className="text-sm font-medium text-muted-foreground mb-3">
         {card.title}
        </h3>
        
        {/* Value and suffix */}
        <div className="flex items-baseline gap-2 mb-3">
-        <span className={cn(
-         "text-2xl xl:text-3xl font-bold text-foreground",
-         "group-hover:scale-105 transition-transform duration-300"
-        )}>
+        <span className="text-2xl xl:text-3xl font-bold text-foreground">
          {card.value}
         </span>
         {card.suffix && (
@@ -192,9 +174,7 @@ export function MaterialDetailSummary({ summary, isLoading }: MaterialDetailSumm
    {summary.topMaterial && (
     <div className={cn(
      "relative bg-gradient-to-r from-primary/5 via-background to-accent/5 backdrop-blur-sm",
-     "border border-border/40 rounded-3xl p-8 overflow-hidden",
-     "hover:shadow-lg hover:shadow-primary/5 hover:border-primary/20",
-     "transition-all duration-500 ease-out"
+     "border border-border/40 rounded-3xl p-8 overflow-hidden"
     )}>
      <div className="absolute top-0 left-0 w-32 h-32 bg-gradient-to-br from-primary/10 to-transparent rounded-full -ml-16 -mt-16"></div>
      <div className="absolute bottom-0 right-0 w-24 h-24 bg-gradient-to-tl from-accent/10 to-transparent rounded-full -mr-12 -mb-12"></div>
@@ -203,8 +183,7 @@ export function MaterialDetailSummary({ summary, isLoading }: MaterialDetailSumm
       <div className="flex items-center gap-6">
        <div className={cn(
         "w-16 h-16 bg-gradient-to-br from-primary/15 to-primary/5 rounded-2xl",
-        "flex items-center justify-center",
-        designTokens.animations.transition.default
+        "flex items-center justify-center"
        )}>
         <Package className="h-8 w-8 text-primary" />
        </div>

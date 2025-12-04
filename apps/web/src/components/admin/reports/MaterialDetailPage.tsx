@@ -210,7 +210,7 @@ export function MaterialDetailPage() {
  }
 
  return (
-  <div className="space-y-8 bg-background text-foreground transition-colors duration-300">
+  <div className="space-y-8 bg-background text-foreground">
    {/* Header Section */}
    <div className="flex items-center justify-between">
     <div className="flex items-center gap-4">
@@ -218,7 +218,7 @@ export function MaterialDetailPage() {
       variant="ghost"
       size="sm"
       onClick={handleBackToReports}
-      className="gap-2 hover:bg-accent focus-visible:ring-ring transition-colors duration-300"
+      className="gap-2 hover:bg-accent focus-visible:ring-ring"
      >
       <ArrowLeft className="h-4 w-4" />
       กลับไปรายงานหลัก
@@ -233,7 +233,7 @@ export function MaterialDetailPage() {
     </div>
     
     <div className="flex items-center gap-3">
-     <Badge variant="outline" className="gap-1 hover:bg-accent focus-visible:ring-ring transition-colors duration-300">
+     <Badge variant="outline" className="gap-1 hover:bg-accent focus-visible:ring-ring">
       <Activity className="h-3 w-3" />
       อัพเดทล่าสุด: {formatRefreshTime(lastRefresh)}
      </Badge>
@@ -243,7 +243,7 @@ export function MaterialDetailPage() {
       size="sm" 
       onClick={handleRefresh}
       disabled={isLoading}
-      className="gap-2 hover:bg-accent focus-visible:ring-ring transition-colors duration-300"
+      className="gap-2 hover:bg-accent focus-visible:ring-ring"
      >
       <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
       รีเฟรช
@@ -255,7 +255,7 @@ export function MaterialDetailPage() {
 
    {/* Error Alert */}
    {error && (
-    <Card className="border-destructive/20 bg-destructive/10 text-destructive transition-colors duration-300">
+    <Card className="border-destructive/20 bg-destructive/10 text-destructive">
      <CardContent className="p-4">
       <div className="flex items-center gap-2">
        <AlertCircle className="h-4 w-4" />
@@ -275,7 +275,7 @@ export function MaterialDetailPage() {
    )}
 
    {/* Filters */}
-   <div className="space-y-6 bg-background text-foreground transition-colors duration-300">
+   <div className="space-y-6 bg-background text-foreground">
     <ReportsDateFilter
      selectedRange={dateRange}
      onRangeChange={handleDateRangeChange}
@@ -290,7 +290,7 @@ export function MaterialDetailPage() {
    </div>
 
    {/* Summary Section */}
-   <section className="bg-background text-foreground transition-colors duration-300">
+   <section className="bg-background text-foreground">
     <div className="flex items-center gap-3 mb-6">
      <div className="p-2 bg-accent text-accent-foreground rounded-lg">
       <Package className="h-5 w-5" />
@@ -306,7 +306,7 @@ export function MaterialDetailPage() {
    </section>
 
    {/* Trend Chart Section */}
-   <section className="bg-background text-foreground transition-colors duration-300">
+   <section className="bg-background text-foreground">
     <MaterialTrendChart
      data={trendData}
      isLoading={isTrendLoading}
@@ -316,7 +316,7 @@ export function MaterialDetailPage() {
    </section>
 
    {/* Branch Breakdown */}
-   <section className="bg-background text-foreground transition-colors duration-300">
+   <section className="bg-background text-foreground">
     <div className="flex items-center gap-3 mb-6">
      <div className="p-2 bg-accent text-accent-foreground rounded-lg">
       <Building2 className="h-5 w-5" />
@@ -329,7 +329,7 @@ export function MaterialDetailPage() {
        variant="ghost"
        size="sm"
        onClick={() => handleBranchChange(null)}
-       className="gap-2 text-blue-600 hover:bg-accent focus-visible:ring-ring transition-colors duration-300"
+       className="gap-2 text-blue-600 hover:bg-accent focus-visible:ring-ring"
       >
        <X className="h-4 w-4" />
        แสดงทุกสาขา
@@ -345,7 +345,7 @@ export function MaterialDetailPage() {
    </section>
 
    {/* Material Usage Table */}
-   <section className="bg-background text-foreground transition-colors duration-300">
+   <section className="bg-background text-foreground">
     <div className="flex items-center gap-3 mb-6">
      <div className="p-2 bg-accent text-accent-foreground rounded-lg">
       <DollarSign className="h-5 w-5" />
@@ -362,7 +362,7 @@ export function MaterialDetailPage() {
    </section>
 
    {/* Footer Info */}
-   <div className="text-center text-sm text-muted-foreground pt-8 border-t border-border bg-background transition-colors duration-300">
+   <div className="text-center text-sm text-muted-foreground pt-8 border-t border-border bg-background">
     <p>ข้อมูลรายงานอัพเดทแบบ Real-time • สร้างเมื่อ {formatRefreshTime(lastRefresh)}</p>
    </div>
   </div>
