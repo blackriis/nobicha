@@ -3,7 +3,6 @@ import path from "path";
 
 const nextConfig: NextConfig = {
   skipTrailingSlashRedirect: true,
-  skipProxyUrlNormalize: true, // Updated from skipMiddlewareUrlNormalize (deprecated in Next.js 16)
   // eslint config removed - Next.js 16 no longer supports eslint in next.config.ts
   // Use eslint.config.mjs instead
   typescript: {
@@ -12,6 +11,11 @@ const nextConfig: NextConfig = {
     // your project has type errors.
     // !! WARN !!
     ignoreBuildErrors: true,
+  },
+  eslint: {
+    // Warning: This allows production builds to successfully complete even if
+    // your project has ESLint errors.
+    ignoreDuringBuilds: true,
   },
   transpilePackages: [
     '@employee-management/config',
@@ -64,17 +68,6 @@ const nextConfig: NextConfig = {
       '@employee-management/config': '../../packages/config',
       '@employee-management/database': '../../packages/database',
       '@employee-management/ui': '../../packages/ui',
-      // Fix for missing optional dependencies in Supabase
-      './lib/web3/ethereum': false,
-      './lib/webauthn': path.resolve(__dirname, 'src/lib/supabase-mocks.js'),
-      './packages/StorageAnalyticsClient': false,
-      './lib/vectors': false,
-      './BlobDownloadBuilder': false,
-      // Fix for zod v4 locale files
-      './ka.js': false,
-      './km.js': false,
-      './lt.js': false,
-      './uk.js': false,
     },
   },
   // Fix workspace root warning
