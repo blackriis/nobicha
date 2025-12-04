@@ -27,7 +27,7 @@ export function AdminLayout({ children, 'data-testid': dataTestId }: AdminLayout
      
      {/* Page Content */}
      <main className="flex-1 overflow-auto" data-testid={dataTestId}>
-      <div className="max-w-7xl mx-auto p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto p-3 sm:p-4 md:p-6 lg:p-8">
        <AdminBreadcrumb />
        {children}
       </div>

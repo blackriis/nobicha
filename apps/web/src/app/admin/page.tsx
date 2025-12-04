@@ -20,7 +20,13 @@ import {
  CalendarDays,
  Eye,
  Loader2,
- RefreshCw
+ RefreshCw,
+ BarChart3,
+ Clock,
+ DollarSign,
+ ArrowUpRight,
+ ArrowDownRight,
+ Sparkles
 } from 'lucide-react'
 import Link from 'next/link'
 import { adminReportsService, type ReportSummary } from '@/lib/services/admin-reports.service'
@@ -216,37 +222,45 @@ const ErrorState = ({ error, onRetry }: { error: string; onRetry: () => void }) 
 )
 
 const WelcomeSection = ({ onRefresh, isLoading }: { onRefresh: () => void; isLoading: boolean }) => (
- <div className="mb-8">
-  <div className="flex items-center justify-between">
-   <div>
-    <h2 className="text-3xl font-bold tracking-tight mb-2">
-     ภาพรวมระบบ
-    </h2>
-    <p className="text-muted-foreground">
-     สรุปข้อมูลสำคัญและการดำเนินงานของระบบบริหารจัดการพนักงาน
-    </p>
+ <div className="mb-4 sm:mb-6">
+  <div className="flex items-center justify-between gap-3">
+   {/* Compact Left Section */}
+   <div className="flex items-center gap-2 sm:gap-3">
+    <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-primary to-primary/80 shadow-md">
+     <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary-foreground" />
+    </div>
+    <div>
+     <h1 className="text-base sm:text-lg font-semibold tracking-tight">
+      ภาพรวมระบบ
+     </h1>
+     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+      <span>อัปเดตสด</span>
+     </div>
+    </div>
    </div>
-   <div className="flex items-center space-x-2">
+   
+   {/* Compact Right Section */}
+   <div className="flex items-center gap-1.5 sm:gap-2">
     <Button
      variant="outline"
      size="sm"
      onClick={onRefresh}
      disabled={isLoading}
-     className="gap-2"
+     className="gap-1.5 h-8 sm:h-9 px-2 sm:px-3"
     >
-     <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-     รีเฟรช
+     <RefreshCw className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${isLoading ? 'animate-spin' : ''}`} />
+     <span className="hidden xs:inline text-xs sm:text-sm">อัปเดต</span>
     </Button>
-    <Badge variant="outline" className="flex items-center gap-1">
-     <Activity className="h-3 w-3" />
-     ออนไลน์
-    </Badge>
-    <Badge variant="secondary">
-     วันนี้: {new Date().toLocaleDateString('th-TH')}
+    <Badge variant="outline" className="gap-1 h-8 sm:h-9 px-2 sm:px-3 text-xs">
+     <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+     <span className="hidden sm:inline">{new Date().toLocaleDateString('th-TH', { 
+      day: 'numeric', 
+      month: 'short' 
+     })}</span>
     </Badge>
    </div>
   </div>
-  <Separator className="mt-4" />
  </div>
 )
 
@@ -256,57 +270,83 @@ const StatsOverview = ({ stats }: { stats: ReportSummary }) => {
    title: 'พนักงานทั้งหมด',
    value: stats.employees.total.toLocaleString(),
    subtitle: `${stats.employees.checkedInToday} คนเช็คอินวันนี้`,
+   trend: '+12%',
+   trendUp: true,
    icon: Users,
-   iconBg: 'bg-blue-50 dark:bg-blue-950',
-   iconColor: 'text-blue-600'
+   gradient: 'from-blue-500/10 via-blue-500/5 to-transparent',
+   iconBg: 'bg-gradient-to-br from-blue-500 to-blue-600',
+   iconColor: 'text-white'
   },
   {
    title: 'สาขาทั้งหมด',
    value: stats.branches.total,
    subtitle: `${stats.branches.active} เปิดทำการ`,
+   trend: '100%',
+   trendUp: true,
    icon: Building2,
-   iconBg: 'bg-green-50 dark:bg-green-950',
-   iconColor: 'text-green-600'
+   gradient: 'from-green-500/10 via-green-500/5 to-transparent',
+   iconBg: 'bg-gradient-to-br from-green-500 to-green-600',
+   iconColor: 'text-white'
   },
   {
    title: 'ยอดขายวันนี้',
    value: `฿${stats.sales.total.toLocaleString()}`,
    subtitle: stats.sales.period === 'today' ? 'วันนี้' : stats.sales.period || 'ไม่ระบุ',
-   icon: TrendingUp,
-   iconBg: 'bg-orange-50 dark:bg-orange-950',
-   iconColor: 'text-orange-600'
+   trend: stats.sales.total > 0 ? '+5%' : '0%',
+   trendUp: stats.sales.total > 0,
+   icon: DollarSign,
+   gradient: 'from-orange-500/10 via-orange-500/5 to-transparent',
+   iconBg: 'bg-gradient-to-br from-orange-500 to-orange-600',
+   iconColor: 'text-white'
   },
   {
-   title: 'วัตถุดิบทั้งหมด',
+   title: 'วัตถุดิบ',
    value: `฿${stats.materials.recentUsageCost.toLocaleString()}`,
    subtitle: `ทั้งหมด ${stats.materials.totalItems} รายการ`,
+   trend: '-3%',
+   trendUp: false,
    icon: Package,
-   iconBg: 'bg-purple-50 dark:bg-purple-950',
-   iconColor: 'text-purple-600'
+   gradient: 'from-purple-500/10 via-purple-500/5 to-transparent',
+   iconBg: 'bg-gradient-to-br from-purple-500 to-purple-600',
+   iconColor: 'text-white'
   }
  ]
 
  return (
-  <section aria-labelledby="stats-heading">
+  <section aria-labelledby="stats-heading" className="mb-6 sm:mb-8">
    <h2 id="stats-heading" className="sr-only">สถิติภาพรวมระบบ</h2>
-   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
     {statCards.map((card, index) => {
      const IconComponent = card.icon
+     const TrendIcon = card.trendUp ? ArrowUpRight : ArrowDownRight
      return (
-      <Card key={index} className="border-0">
+      <Card 
+       key={index} 
+       className={`relative overflow-hidden border-0 bg-gradient-to-br ${card.gradient} hover:shadow-lg transition-all duration-300 group`}
+      >
        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
-        <div className={`p-2 ${card.iconBg} rounded-lg`}>
-         <IconComponent className={`h-4 w-4 ${card.iconColor}`} />
+        <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+         {card.title}
+        </CardTitle>
+        <div className={`p-2 sm:p-2.5 ${card.iconBg} rounded-xl shadow-lg flex-shrink-0 group-hover:scale-110 transition-transform duration-300`}>
+         <IconComponent className={`h-4 w-4 sm:h-5 sm:w-5 ${card.iconColor}`} />
         </div>
        </CardHeader>
-       <CardContent>
-        <div className="text-2xl font-bold">{card.value}</div>
-        <div className="text-xs text-muted-foreground flex items-center mt-1">
-         <div className="flex items-center text-green-600">
-          <CheckCircle2 className="h-3 w-3 mr-1" />
+       <CardContent className="space-y-1">
+        <div className="text-2xl sm:text-3xl font-bold tracking-tight">
+         {card.value}
+        </div>
+        <div className="flex items-center justify-between">
+         <p className="text-xs text-muted-foreground truncate">
           {card.subtitle}
-         </div>
+         </p>
+         <Badge 
+          variant={card.trendUp ? "default" : "secondary"} 
+          className="gap-1 text-[10px] sm:text-xs"
+         >
+          <TrendIcon className="h-3 w-3" />
+          {card.trend}
+         </Badge>
         </div>
        </CardContent>
       </Card>
@@ -319,48 +359,69 @@ const StatsOverview = ({ stats }: { stats: ReportSummary }) => {
 
 const QuickActionsSection = ({ quickActions }: { quickActions: ReturnType<typeof createQuickActions> }) => (
  <div className="lg:col-span-2">
-  <div className="flex items-center justify-between mb-6">
-   <h3 className="text-xl font-semibold tracking-tight">
-    เมนูหลัก
-   </h3>
-   <Button variant="outline" size="sm" className="gap-2">
-    <Eye className="h-4 w-4" />
-    ดูทั้งหมด
+  <div className="flex items-center justify-between mb-4 sm:mb-6">
+   <div>
+    <h3 className="text-base sm:text-lg lg:text-xl font-semibold tracking-tight">
+     เมนูการจัดการ
+    </h3>
+    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+     เลือกระบบที่ต้องการจัดการ
+    </p>
+   </div>
+   <Button variant="ghost" size="sm" className="gap-1.5 sm:gap-2 h-8 sm:h-9 text-xs sm:text-sm">
+    <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
+    <span className="hidden xs:inline">ดูทั้งหมด</span>
    </Button>
   </div>
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
    {quickActions.map((action) => {
     const IconComponent = action.icon
     return (
-     <Card key={action.href} className="border-0 hover: transition-all duration-200 cursor-pointer group" role="article" aria-labelledby={`action-title-${action.href.split('/').pop()}`}>
-      <CardHeader className="pb-3">
-       <div className="flex items-center justify-between">
-        <div className={`p-3 rounded-lg ${action.bgColor} group-hover:scale-105 transition-transform`} aria-hidden="true">
-         <IconComponent className={`h-6 w-6 ${action.color}`} />
+     <Link key={action.href} href={action.href}>
+      <Card 
+       className="relative overflow-hidden border hover:border-primary/50 hover:shadow-xl transition-all duration-300 cursor-pointer group bg-card/50 backdrop-blur-sm" 
+       role="article" 
+       aria-labelledby={`action-title-${action.href.split('/').pop()}`}
+      >
+       {/* Gradient Background on Hover */}
+       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+       
+       <CardHeader className="relative pb-3 sm:pb-4">
+        <div className="flex items-start justify-between gap-3">
+         <div className="flex items-start gap-3 min-w-0 flex-1">
+          <div className={`p-2.5 sm:p-3 rounded-xl ${action.bgColor} group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 flex-shrink-0 shadow-md`}>
+           <IconComponent className={`h-5 w-5 sm:h-6 sm:w-6 ${action.color}`} />
+          </div>
+          <div className="min-w-0 flex-1">
+           <CardTitle 
+            id={`action-title-${action.href.split('/').pop()}`} 
+            className="text-sm sm:text-base lg:text-lg group-hover:text-primary transition-colors line-clamp-1"
+           >
+            {action.title}
+           </CardTitle>
+           <CardDescription className="text-xs sm:text-sm mt-1 line-clamp-2">
+            {action.description}
+           </CardDescription>
+          </div>
+         </div>
         </div>
-        <div className="text-right">
-         <Badge variant="secondary" className="mb-1">{action.stats}</Badge>
-         <div className="text-xs text-muted-foreground">{action.trend}</div>
+       </CardHeader>
+       
+       <CardContent className="relative pt-0 space-y-3">
+        <div className="flex items-center justify-between">
+         <div className="space-y-1">
+          <Badge variant="secondary" className="text-xs font-semibold">
+           {action.stats}
+          </Badge>
+          <p className="text-[10px] sm:text-xs text-muted-foreground">
+           {action.trend}
+          </p>
+         </div>
+         <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-2 transition-all duration-300" />
         </div>
-       </div>
-       <CardTitle id={`action-title-${action.href.split('/').pop()}`} className="text-lg group-hover:text-primary transition-colors">{action.title}</CardTitle>
-       <CardDescription className="text-sm">
-        {action.description}
-       </CardDescription>
-      </CardHeader>
-      <CardContent className="pt-0">
-       <Button asChild className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-        <Link 
-         href={action.href} 
-         className="flex items-center justify-center gap-2"
-         aria-label={`เข้าใช้งาน ${action.title}`}
-        >
-         เข้าใช้งาน
-         <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" aria-hidden="true" />
-        </Link>
-       </Button>
-      </CardContent>
-     </Card>
+       </CardContent>
+      </Card>
+     </Link>
     )
    })}
   </div>
@@ -368,26 +429,35 @@ const QuickActionsSection = ({ quickActions }: { quickActions: ReturnType<typeof
 )
 
 const ActivityPanel = ({ recentActivity, stats }: { recentActivity: ActivityItem[]; stats: ReportSummary }) => (
- <aside aria-labelledby="activity-heading" className="space-y-6">
+ <aside aria-labelledby="activity-heading" className="space-y-4 sm:space-y-6">
   <div className="flex items-center justify-between">
-   <h3 id="activity-heading" className="text-xl font-semibold tracking-tight">
-    สถานะปัจจุบัน
-   </h3>
-   <Badge variant="outline" className="gap-1">
-    <CalendarDays className="h-3 w-3" />
-    Real-time
+   <div>
+    <h3 id="activity-heading" className="text-base sm:text-lg lg:text-xl font-semibold tracking-tight">
+     สถานะปัจจุบัน
+    </h3>
+    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+     อัปเดตแบบเรียลไทม์
+    </p>
+   </div>
+   <Badge variant="outline" className="gap-1.5 text-xs sm:text-sm animate-pulse">
+    <div className="h-2 w-2 rounded-full bg-green-500" />
+    Live
    </Badge>
   </div>
-  <Card className="border-0" role="region" aria-labelledby="daily-activity">
-   <CardHeader className="pb-4">
+  
+  {/* Activity Card */}
+  <Card className="border-0 bg-gradient-to-br from-blue-500/5 via-background to-background" role="region" aria-labelledby="daily-activity">
+   <CardHeader className="pb-3 sm:pb-4">
     <div className="flex items-center gap-2">
-     <div className="p-2 bg-blue-50 dark:bg-blue-950 rounded-lg">
-      <Activity className="h-4 w-4 text-blue-600" />
+     <div className="p-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg flex-shrink-0">
+      <Activity className="h-4 w-4 text-white" />
      </div>
-     <div>
-      <CardTitle id="daily-activity" className="text-lg">กิจกรรมวันนี้</CardTitle>
-      <CardDescription className="text-sm">
-       ติดตามสถานะการทำงานแบบเรียลไทม์
+     <div className="min-w-0 flex-1">
+      <CardTitle id="daily-activity" className="text-sm sm:text-base lg:text-lg">
+       กิจกรรมวันนี้
+      </CardTitle>
+      <CardDescription className="text-xs sm:text-sm">
+       ติดตามสถานะการทำงาน
       </CardDescription>
      </div>
     </div>
@@ -395,30 +465,41 @@ const ActivityPanel = ({ recentActivity, stats }: { recentActivity: ActivityItem
    <CardContent className="space-y-4">
     {recentActivity.map((activity, index) => (
      <div key={index} className="space-y-2">
-      <div className="flex items-center justify-between">
-       <span className="text-sm font-medium">
+      <div className="flex items-center justify-between gap-2">
+       <span className="text-xs sm:text-sm font-medium truncate">
         {activity.title}
        </span>
        <Badge 
         variant={activity.status === 'success' ? 'default' : activity.status === 'warning' ? 'destructive' : 'secondary'}
-        className="text-xs"
+        className="text-[10px] sm:text-xs flex-shrink-0 font-semibold"
        >
         {activity.title === 'ยอดขายวันนี้' ? `฿${activity.value.toLocaleString()}` : `${activity.value}/${activity.total}`}
        </Badge>
       </div>
       {activity.title === 'ยอดขายวันนี้' && activity.value === 0 ? (
-       <div className="text-xs text-muted-foreground italic">
+       <div className="text-[10px] sm:text-xs text-muted-foreground italic flex items-center gap-1">
+        <AlertCircle className="h-3 w-3" />
         ยังไม่มียอดขายในวันนี้
        </div>
       ) : (
        <>
-        <Progress 
-         value={activity.percentage} 
-         className="h-2"
-         aria-label={`${activity.title}: ${activity.percentage}% ความคืบหน้า (${activity.value}/${activity.total})`}
-        />
-        <div className="text-xs text-muted-foreground">
-         {activity.title === 'ยอดขายวันนี้' ? `฿${activity.value.toLocaleString()}` : `${activity.percentage}% ความคืบหน้า`}
+        <div className="relative">
+         <Progress 
+          value={activity.percentage} 
+          className="h-2"
+          aria-label={`${activity.title}: ${activity.percentage}% ความคืบหน้า (${activity.value}/${activity.total})`}
+         />
+        </div>
+        <div className="flex items-center justify-between text-[10px] sm:text-xs text-muted-foreground">
+         <span>
+          {activity.title === 'ยอดขายวันนี้' ? `฿${activity.value.toLocaleString()}` : `${activity.percentage}% ความคืบหน้า`}
+         </span>
+         {activity.status === 'success' && (
+          <span className="flex items-center gap-1 text-green-600">
+           <CheckCircle2 className="h-3 w-3" />
+           ดีมาก
+          </span>
+         )}
         </div>
        </>
       )}
@@ -427,29 +508,43 @@ const ActivityPanel = ({ recentActivity, stats }: { recentActivity: ActivityItem
    </CardContent>
   </Card>
 
-  <Card className="border-0" role="region" aria-labelledby="quick-stats">
-   <CardHeader className="pb-4">
-    <div className="flex items-center gap-2">
-     <div className="p-2 bg-green-50 dark:bg-green-950 rounded-lg">
-      <Activity className="h-4 w-4 text-green-600" />
+  {/* Quick Stats Card */}
+  <Card className="border-0 bg-gradient-to-br from-green-500/5 via-background to-background" role="region" aria-labelledby="quick-stats">
+   <CardHeader className="pb-3 sm:pb-4">
+    <div className="flex items-center justify-between">
+     <div className="flex items-center gap-2">
+      <div className="p-2 bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg flex-shrink-0">
+       <BarChart3 className="h-4 w-4 text-white" />
+      </div>
+      <CardTitle id="quick-stats" className="text-sm sm:text-base lg:text-lg">
+       สรุปยอดรวม
+      </CardTitle>
      </div>
-     <CardTitle id="quick-stats" className="text-lg">ข้อมูลด่วน</CardTitle>
     </div>
    </CardHeader>
    <CardContent className="space-y-3">
-    <div className="flex items-center justify-between py-2 border-b last:border-b-0">
-     <span className="text-sm text-muted-foreground">วัตถุดิบทั้งหมด</span>
-     <span className="font-semibold">{stats.materials.totalItems} รายการ</span>
+    <div className="flex items-center justify-between py-2 border-b border-border/50">
+     <div className="flex items-center gap-2">
+      <Package className="h-4 w-4 text-muted-foreground" />
+      <span className="text-xs sm:text-sm text-muted-foreground">วัตถุดิบทั้งหมด</span>
+     </div>
+     <span className="text-xs sm:text-sm font-bold">{stats.materials.totalItems} รายการ</span>
     </div>
-    <div className="flex items-center justify-between py-2 border-b last:border-b-0">
-     <span className="text-sm text-muted-foreground">ยอดขายวันนี้</span>
-     <span className="font-semibold text-green-600">
+    <div className="flex items-center justify-between py-2 border-b border-border/50">
+     <div className="flex items-center gap-2">
+      <TrendingUp className="h-4 w-4 text-green-600" />
+      <span className="text-xs sm:text-sm text-muted-foreground">ยอดขายวันนี้</span>
+     </div>
+     <span className="text-xs sm:text-sm font-bold text-green-600">
       ฿{stats.sales.total.toLocaleString()}
      </span>
     </div>
     <div className="flex items-center justify-between py-2">
-     <span className="text-sm text-muted-foreground">ค่าใช้จ่ายวัตถุดิบ</span>
-     <span className="font-semibold text-destructive">
+     <div className="flex items-center gap-2">
+      <DollarSign className="h-4 w-4 text-destructive" />
+      <span className="text-xs sm:text-sm text-muted-foreground">ค่าใช้จ่ายวัตถุดิบ</span>
+     </div>
+     <span className="text-xs sm:text-sm font-bold text-destructive">
       ฿{stats.materials.recentUsageCost.toLocaleString()}
      </span>
     </div>
@@ -492,7 +587,7 @@ function AdminDashboard() {
   <AdminLayout data-testid="admin-dashboard">
    <WelcomeSection onRefresh={refresh} isLoading={loading} />
    <StatsOverview stats={stats} />
-   <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+   <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
     <QuickActionsSection quickActions={quickActions} />
     <ActivityPanel recentActivity={recentActivity} stats={stats} />
    </div>
