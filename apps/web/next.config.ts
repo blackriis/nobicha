@@ -64,6 +64,17 @@ const nextConfig: NextConfig = {
       '@employee-management/config': '../../packages/config',
       '@employee-management/database': '../../packages/database',
       '@employee-management/ui': '../../packages/ui',
+      // Fix for missing optional dependencies in Supabase
+      './lib/web3/ethereum': false,
+      './lib/webauthn': path.resolve(__dirname, 'src/lib/supabase-mocks.js'),
+      './packages/StorageAnalyticsClient': false,
+      './lib/vectors': false,
+      './BlobDownloadBuilder': false,
+      // Fix for zod v4 locale files
+      './ka.js': false,
+      './km.js': false,
+      './lt.js': false,
+      './uk.js': false,
     },
   },
   // Fix workspace root warning
