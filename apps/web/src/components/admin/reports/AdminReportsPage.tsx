@@ -28,6 +28,7 @@ import {
 import { ReportsDateFilter } from './ReportsDateFilter'
 import { ReportsSummaryCards } from './ReportsSummaryCards'
 import { EmployeeReportsSection } from './EmployeeReportsSection'
+import { BranchFilter } from './BranchFilter'
 
 // Import service and types
 import {
@@ -109,6 +110,7 @@ export function AdminReportsPage(): JSX.Element {
  
  // State management
  const [dateRange, setDateRange] = useState<DateRangeFilter>({ type: 'today' })
+ const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null)
  const [isLoading, setIsLoading] = useState(false)
  const [error, setError] = useState<string | null>(null)
  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
@@ -122,7 +124,7 @@ export function AdminReportsPage(): JSX.Element {
 
  // Fetch all reports data (memoized)
  const fetchReportsData = useCallback(
-  async (selectedRange: DateRangeFilter): Promise<void> => {
+  async (selectedRange: DateRangeFilter, branchId: string | null = null): Promise<void> => {
    setIsLoading(true)
    setError(null)
    try {
@@ -148,11 +150,11 @@ export function AdminReportsPage(): JSX.Element {
      salesResult,
      materialResult
     ] = await Promise.all([
-     adminReportsService.getSummaryReport(selectedRange),
-     adminReportsService.getEmployeeReports(selectedRange),
-     adminReportsService.getBranchReports(selectedRange),
-     adminReportsService.getSalesReports(selectedRange),
-     adminReportsService.getMaterialReports(selectedRange)
+     adminReportsService.getSummaryReport(selectedRange, branchId),
+     adminReportsService.getEmployeeReports(selectedRange, branchId),
+     adminReportsService.getBranchReports(selectedRange, branchId),
+     adminReportsService.getSalesReports(selectedRange, branchId),
+     adminReportsService.getMaterialReports(selectedRange, branchId)
     ])
 
     // Update data or fallback if failed
@@ -186,8 +188,7 @@ export function AdminReportsPage(): JSX.Element {
 
  // Initial data load
  useEffect(() => {
-  fetchReportsData(dateRange)
-  // Only on mount
+  fetchReportsData(dateRange, selectedBranchId)
   // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [])
 
@@ -195,15 +196,24 @@ export function AdminReportsPage(): JSX.Element {
  const handleDateRangeChange = useCallback(
   (newRange: DateRangeFilter): void => {
    setDateRange(newRange)
-   fetchReportsData(newRange)
+   fetchReportsData(newRange, selectedBranchId)
   },
-  [fetchReportsData]
+  [fetchReportsData, selectedBranchId]
+ )
+
+ // Handle branch filter change (memoized)
+ const handleBranchChange = useCallback(
+  (branchId: string | null): void => {
+   setSelectedBranchId(branchId)
+   fetchReportsData(dateRange, branchId)
+  },
+  [fetchReportsData, dateRange]
  )
 
  // Handle refresh (memoized)
  const handleRefresh = useCallback((): void => {
-  fetchReportsData(dateRange)
- }, [fetchReportsData, dateRange])
+  fetchReportsData(dateRange, selectedBranchId)
+ }, [fetchReportsData, dateRange, selectedBranchId])
 
  // Handle CSV export (placeholder)
  const handleExportCSV = useCallback(async (): Promise<void> => {
@@ -303,11 +313,16 @@ export function AdminReportsPage(): JSX.Element {
       </div>
      )}
 
-     {/* Date Range Filter - Overview Section */}
-     <section id="section-overview" className="scroll-mt-20">
+     {/* Filters Section */}
+     <section id="section-overview" className="scroll-mt-20 space-y-4">
       <ReportsDateFilter
        selectedRange={dateRange}
        onRangeChange={handleDateRangeChange}
+       isLoading={isLoading}
+      />
+      <BranchFilter
+       selectedBranchId={selectedBranchId}
+       onBranchChange={handleBranchChange}
        isLoading={isLoading}
       />
      </section>
@@ -335,9 +350,9 @@ export function AdminReportsPage(): JSX.Element {
       </div>
 
       {/* Responsive Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 auto-rows-fr">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 auto-rows-fr">
        {/* Employee Reports - Full Width */}
-       <section id="section-employees" className="scroll-mt-20 lg:col-span-2">
+       <section id="section-employees" className="scroll-mt-20 lg:col-span-2 mb-2 sm:mb-0">
         <Card className="border-border bg-background hover: duration-200 h-full transition-colors duration-300">
          <EmployeeReportsSection
           data={employeeData}
@@ -368,7 +383,7 @@ export function AdminReportsPage(): JSX.Element {
            </Badge>
           </div>
          </CardHeader>
-         <CardContent className="space-y-6 flex-1 flex flex-col">
+         <CardContent className="space-y-4 sm:space-y-5 flex-1 flex flex-col">
            {isLoading ? (
             <div className="space-y-4">
              <div className="grid grid-cols-2 gap-4">
@@ -407,7 +422,6 @@ export function AdminReportsPage(): JSX.Element {
               </div>
               <Progress value={87} className="h-2 bg-muted" indicatorClassName="bg-primary transition-all duration-500" />
              </div>
-
 
              <Button
               variant="outline"
@@ -454,7 +468,7 @@ export function AdminReportsPage(): JSX.Element {
            </Badge>
           </div>
          </CardHeader>
-         <CardContent className="space-y-6 flex-1 flex flex-col">
+         <CardContent className="space-y-4 sm:space-y-5 flex-1 flex flex-col">
            {isLoading ? (
             <div className="space-y-4">
              <div className="grid grid-cols-2 gap-4">
@@ -506,7 +520,6 @@ export function AdminReportsPage(): JSX.Element {
                indicatorClassName="bg-primary transition-all duration-500"
               />
              </div>
-
 
              <Button
               variant="outline"

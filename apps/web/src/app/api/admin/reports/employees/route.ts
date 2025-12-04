@@ -63,6 +63,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
     const limit = parseInt(searchParams.get('limit') || '50')
+    const branchId = searchParams.get('branchId')
 
     // Calculate date filter
     const now = new Date()
@@ -71,11 +72,17 @@ export async function GET(request: NextRequest) {
 
     // Step 1: Get time entries using direct client
     console.log('Step 1: Getting time entries...')
-    const { data: timeEntries, error: timeError } = await directClient
+    let timeEntriesQuery = directClient
       .from('time_entries')
       .select('id, user_id, branch_id, check_in_time, check_out_time, total_hours')
       .order('check_in_time', { ascending: false })
       .limit(limit)
+    
+    if (branchId) {
+      timeEntriesQuery = timeEntriesQuery.eq('branch_id', branchId)
+    }
+    
+    const { data: timeEntries, error: timeError } = await timeEntriesQuery
 
     if (timeError) {
       console.error('Time entries error:', timeError)

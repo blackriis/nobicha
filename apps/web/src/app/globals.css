@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Anuphan:wght@100;200;300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -139,4 +141,61 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Anuphan Font Classes - All Weights */
+.anuphan-100 {
+  font-family: "Anuphan", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 100;
+  font-style: normal;
+}
+
+.anuphan-200 {
+  font-family: "Anuphan", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 200;
+  font-style: normal;
+}
+
+.anuphan-300 {
+  font-family: "Anuphan", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 300;
+  font-style: normal;
+}
+
+.anuphan-400 {
+  font-family: "Anuphan", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.anuphan-500 {
+  font-family: "Anuphan", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 500;
+  font-style: normal;
+}
+
+.anuphan-600 {
+  font-family: "Anuphan", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-style: normal;
+}
+
+.anuphan-700 {
+  font-family: "Anuphan", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 700;
+  font-style: normal;
+}
+
+.anuphan-800 {
+  font-family: "Anuphan", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 800;
+  font-style: normal;
 }

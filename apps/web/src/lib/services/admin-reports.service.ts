@@ -223,10 +223,13 @@ class AdminReportsService {
   }
 
   // Get overall summary statistics
-  async getSummaryReport(dateRange: DateRangeFilter): Promise<AdminReportsServiceResult<ReportSummary>> {
+  async getSummaryReport(dateRange: DateRangeFilter, branchId: string | null = null): Promise<AdminReportsServiceResult<ReportSummary>> {
     try {
-      const queryParams = this.formatDateRange(dateRange)
-      const url = `/api/admin/reports/summary?${queryParams}`
+      const queryParams = new URLSearchParams(this.formatDateRange(dateRange))
+      if (branchId) {
+        queryParams.append('branchId', branchId)
+      }
+      const url = `/api/admin/reports/summary?${queryParams.toString()}`
       
       const response = await fetch(url, {
         credentials: 'include',
@@ -261,14 +264,18 @@ class AdminReportsService {
   }
 
   // Get employee work reports
-  async getEmployeeReports(dateRange: DateRangeFilter, limit: number = 50): Promise<AdminReportsServiceResult<{
+  async getEmployeeReports(dateRange: DateRangeFilter, branchId: string | null = null, limit: number = 50): Promise<AdminReportsServiceResult<{
     summary: Record<string, unknown>
     employees: EmployeeReport[]
     dateRange: Record<string, unknown>
   }>> {
     try {
-      const queryParams = this.formatDateRange(dateRange)
-      const response = await fetch(`/api/admin/reports/employees?${queryParams}&limit=${limit}`, {
+      const queryParams = new URLSearchParams(this.formatDateRange(dateRange))
+      if (branchId) {
+        queryParams.append('branchId', branchId)
+      }
+      queryParams.append('limit', limit.toString())
+      const response = await fetch(`/api/admin/reports/employees?${queryParams.toString()}`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
@@ -301,14 +308,17 @@ class AdminReportsService {
   }
 
   // Get branch performance reports
-  async getBranchReports(dateRange: DateRangeFilter): Promise<AdminReportsServiceResult<{
+  async getBranchReports(dateRange: DateRangeFilter, branchId: string | null = null): Promise<AdminReportsServiceResult<{
     summary: Record<string, unknown>
     branches: BranchReport[]
     dateRange: Record<string, unknown>
   }>> {
     try {
-      const queryParams = this.formatDateRange(dateRange)
-      const response = await fetch(`/api/admin/reports/branches?${queryParams}`, {
+      const queryParams = new URLSearchParams(this.formatDateRange(dateRange))
+      if (branchId) {
+        queryParams.append('branchId', branchId)
+      }
+      const response = await fetch(`/api/admin/reports/branches?${queryParams.toString()}`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
@@ -341,10 +351,14 @@ class AdminReportsService {
   }
 
   // Get sales reports
-  async getSalesReports(dateRange: DateRangeFilter, limit: number = 100): Promise<AdminReportsServiceResult<SalesReport>> {
+  async getSalesReports(dateRange: DateRangeFilter, branchId: string | null = null, limit: number = 100): Promise<AdminReportsServiceResult<SalesReport>> {
     try {
-      const queryParams = this.formatDateRange(dateRange)
-      const response = await fetch(`/api/admin/reports/sales?${queryParams}&limit=${limit}`, {
+      const queryParams = new URLSearchParams(this.formatDateRange(dateRange))
+      if (branchId) {
+        queryParams.append('branchId', branchId)
+      }
+      queryParams.append('limit', limit.toString())
+      const response = await fetch(`/api/admin/reports/sales?${queryParams.toString()}`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'

@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
     const limit = parseInt(searchParams.get('limit') || '100')
+    const branchId = searchParams.get('branchId')
 
     // Calculate date filter
     const now = new Date()
@@ -70,12 +71,18 @@ export async function GET(request: NextRequest) {
 
     // Step 1: Fetch sales reports
     console.log('Step 1: Getting sales reports...')
-    const { data: salesData, error } = await adminClient
+    let salesQuery = adminClient
       .from('sales_reports')
       .select('id, branch_id, user_id, report_date, total_sales, created_at')
       .gte('created_at', dateFilter)
       .order('created_at', { ascending: false })
       .limit(limit)
+    
+    if (branchId) {
+      salesQuery = salesQuery.eq('branch_id', branchId)
+    }
+    
+    const { data: salesData, error } = await salesQuery
 
     if (error) {
       console.error('Sales reports query error:', error)

@@ -52,11 +52,18 @@ export async function GET(request: NextRequest) {
     const dateRange = searchParams.get('dateRange') || 'today'
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
+    const branchId = searchParams.get('branchId')
 
-    // Calculate date filter based on range (also expose accurate display dates)
+    // Calculate date filter based on range
+    // Use Thailand timezone (Asia/Bangkok, UTC+7) for date calculations
     const now = new Date()
+    // Get current date in Thailand timezone
+    const thailandDateStr = now.toLocaleDateString('en-CA', { 
+      timeZone: 'Asia/Bangkok' 
+    }) // Returns YYYY-MM-DD format
+    
     let computedStartDate: string
-    let computedEndDate: string = now.toISOString().split('T')[0]
+    let computedEndDate: string = thailandDateStr
 
     switch (dateRange) {
       case 'today': {
@@ -64,13 +71,19 @@ export async function GET(request: NextRequest) {
         break
       }
       case 'week': {
-        const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-        computedStartDate = weekStart.toISOString().split('T')[0]
+        const weekAgo = new Date(now)
+        weekAgo.setDate(weekAgo.getDate() - 7)
+        computedStartDate = weekAgo.toLocaleDateString('en-CA', { 
+          timeZone: 'Asia/Bangkok' 
+        })
         break
       }
       case 'month': {
-        const monthStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-        computedStartDate = monthStart.toISOString().split('T')[0]
+        const monthAgo = new Date(now)
+        monthAgo.setDate(monthAgo.getDate() - 30)
+        computedStartDate = monthAgo.toLocaleDateString('en-CA', { 
+          timeZone: 'Asia/Bangkok' 
+        })
         break
       }
       case 'custom': {
@@ -86,6 +99,7 @@ export async function GET(request: NextRequest) {
     // Fetch summary statistics using parallel queries
     const [
       totalEmployeesResult,
+      totalBranchesResult,
       activeBranchesResult,
       todayCheckInsResult,
       totalSalesResult,
@@ -93,33 +107,103 @@ export async function GET(request: NextRequest) {
       recentMaterialUsageResult
     ] = await Promise.all([
       // Total employees count
-      adminClient
-        .from('users')
-        .select('id', { count: 'exact' })
-        .eq('role', 'employee')
-        .eq('is_active', true),
+      (() => {
+        let query = adminClient
+          .from('users')
+          .select('id', { count: 'exact' })
+          .eq('role', 'employee')
+          .eq('is_active', true)
+        if (branchId) {
+          query = query.eq('branch_id', branchId)
+        }
+        return query
+      })(),
       
-      // Active branches count
-      adminClient
-        .from('branches')
-        .select('id', { count: 'exact' }),
+      // Total branches count
+      (() => {
+        let query = adminClient
+          .from('branches')
+          .select('id', { count: 'exact' })
+        if (branchId) {
+          query = query.eq('id', branchId)
+        }
+        return query
+      })(),
       
-      // Today's check-ins count
-      adminClient
-        .from('time_entries')
-        .select('id', { count: 'exact' })
-        .gte('check_in_time', now.toISOString().split('T')[0]),
+      // Active branches count (unique branches with check-ins today)
+      (async () => {
+        // Use date range that covers the entire day in Thailand timezone (UTC+7)
+        const startOfDay = new Date(computedStartDate + 'T00:00:00+07:00')
+        const endOfDay = new Date(computedEndDate + 'T23:59:59+07:00')
+        
+        let query = adminClient
+          .from('time_entries')
+          .select('branch_id')
+          .gte('check_in_time', startOfDay.toISOString())
+          .lte('check_in_time', endOfDay.toISOString())
+          .not('branch_id', 'is', null)
+        if (branchId) {
+          query = query.eq('branch_id', branchId)
+        }
+        const result = await query
+        if (result.error) {
+          return { data: null, error: result.error, count: 0 }
+        }
+        // Count unique branch IDs
+        const uniqueBranches = new Set(result.data?.map(entry => entry.branch_id).filter(Boolean) || [])
+        return { data: null, error: null, count: uniqueBranches.size }
+      })(),
+      
+      // Today's check-ins count (unique employees)
+      // Use date range that covers the entire day in Thailand timezone (UTC+7)
+      (async () => {
+        // Start of day in Thailand timezone (00:00:00 Asia/Bangkok)
+        const startOfDay = new Date(computedStartDate + 'T00:00:00+07:00')
+        // End of day in Thailand timezone (23:59:59.999 Asia/Bangkok)
+        const endOfDay = new Date(computedEndDate + 'T23:59:59.999+07:00')
+        
+        let query = adminClient
+          .from('time_entries')
+          .select('user_id')
+          .gte('check_in_time', startOfDay.toISOString())
+          .lte('check_in_time', endOfDay.toISOString())
+        if (branchId) {
+          query = query.eq('branch_id', branchId)
+        }
+        const result = await query
+        if (result.error) {
+          console.error('❌ Error querying check-ins:', result.error)
+          return { data: null, error: result.error, count: 0 }
+        }
+        // Count unique user IDs
+        const uniqueUsers = new Set(result.data?.map(entry => entry.user_id).filter(Boolean) || [])
+        console.log('📊 Check-ins today:', {
+          dateRange: { computedStartDate, computedEndDate },
+          startOfDay: startOfDay.toISOString(),
+          endOfDay: endOfDay.toISOString(),
+          totalEntries: result.data?.length || 0,
+          uniqueUsers: uniqueUsers.size,
+          userIds: Array.from(uniqueUsers)
+        })
+        return { data: null, error: null, count: uniqueUsers.size }
+      })(),
       
       // Total sales for date range
-      adminClient
-        .from('sales_reports')
-        .select('total_sales')
-        .filter('created_at', 'gte', 
-          dateRange === 'today' ? now.toISOString().split('T')[0] :
-          dateRange === 'week' ? new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString() :
-          dateRange === 'month' ? new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString() :
-          startDate || now.toISOString().split('T')[0]
-        ),
+      (() => {
+        let query = adminClient
+          .from('sales_reports')
+          .select('total_sales')
+          .filter('created_at', 'gte', 
+            dateRange === 'today' ? now.toISOString().split('T')[0] :
+            dateRange === 'week' ? new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString() :
+            dateRange === 'month' ? new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString() :
+            startDate || now.toISOString().split('T')[0]
+          )
+        if (branchId) {
+          query = query.eq('branch_id', branchId)
+        }
+        return query
+      })(),
       
       // Total raw materials count
       adminClient
@@ -127,18 +211,73 @@ export async function GET(request: NextRequest) {
         .select('id', { count: 'exact' })
         .eq('is_active', true),
       
-      // Recent material usage (for trend)
-      adminClient
+      // Recent material usage (for today's cost)
+      // Note: material_usage doesn't have branch_id directly, need to join through time_entries
+      // If branchId is specified, we'll handle it separately after getting time entries
+      branchId ? Promise.resolve({ data: [], error: null }) : adminClient
         .from('material_usage')
         .select('total_cost')
-        .gte('created_at', new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString())
+        .gte('created_at', computedStartDate + 'T00:00:00.000Z')
+        .lte('created_at', computedEndDate + 'T23:59:59.999Z')
     ])
 
     // Process total sales calculation
     const totalSales = totalSalesResult.data?.reduce((sum, report) => sum + (report.total_sales || 0), 0) || 0
     
     // Process material usage cost
-    const totalMaterialUsageCost = recentMaterialUsageResult.data?.reduce((sum, usage) => sum + (usage.total_cost || 0), 0) || 0
+    // If branchId is specified, we need to get time_entry_ids first, then query material_usage
+    let totalMaterialUsageCost = 0
+    if (branchId) {
+      // Get time entries for the specified branch
+      const { data: branchTimeEntries, error: timeEntriesError } = await adminClient
+        .from('time_entries')
+        .select('id')
+        .eq('branch_id', branchId)
+        .gte('check_in_time', computedStartDate + 'T00:00:00.000Z')
+        .lte('check_in_time', computedEndDate + 'T23:59:59.999Z')
+      
+      console.log('📊 Branch time entries:', {
+        branchId,
+        count: branchTimeEntries?.length || 0,
+        error: timeEntriesError?.message
+      })
+      
+      if (branchTimeEntries && branchTimeEntries.length > 0) {
+        const timeEntryIds = branchTimeEntries.map(entry => entry.id)
+        const { data: branchMaterialUsage, error: materialError } = await adminClient
+          .from('material_usage')
+          .select('total_cost')
+          .in('time_entry_id', timeEntryIds)
+          .gte('created_at', computedStartDate + 'T00:00:00.000Z')
+          .lte('created_at', computedEndDate + 'T23:59:59.999Z')
+        
+        console.log('📊 Branch material usage:', {
+          branchId,
+          timeEntryIds: timeEntryIds.length,
+          usageCount: branchMaterialUsage?.length || 0,
+          error: materialError?.message
+        })
+        
+        totalMaterialUsageCost = branchMaterialUsage?.reduce((sum, usage) => {
+          const cost = usage.total_cost || 0
+          console.log('💰 Material usage cost:', cost)
+          return sum + cost
+        }, 0) || 0
+      }
+    } else {
+      console.log('📊 All branches material usage:', {
+        dataCount: recentMaterialUsageResult.data?.length || 0,
+        error: recentMaterialUsageResult.error?.message
+      })
+      
+      totalMaterialUsageCost = recentMaterialUsageResult.data?.reduce((sum, usage) => {
+        const cost = usage.total_cost || 0
+        console.log('💰 Material usage cost:', cost)
+        return sum + cost
+      }, 0) || 0
+    }
+    
+    console.log('💰 Total material usage cost:', totalMaterialUsageCost)
 
     // Build summary response
     const summary = {
@@ -149,7 +288,7 @@ export async function GET(request: NextRequest) {
           Math.round(((todayCheckInsResult.count || 0) / totalEmployeesResult.count) * 100) : 0
       },
       branches: {
-        total: activeBranchesResult.count || 0,
+        total: totalBranchesResult.count || 0,
         active: activeBranchesResult.count || 0
       },
       sales: {

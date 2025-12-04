@@ -90,7 +90,21 @@ export function AdminTimeEntriesPage() {
    }
 
    const result = await response.json()
-   setBranches(result.data || [])
+   console.log('Branches API response:', result)
+   
+   // API returns { success: true, branches: [...] }
+   if (result.success && result.branches) {
+     // Ensure branches have the correct structure
+     const formattedBranches = result.branches.map((branch: any) => ({
+       id: branch.id,
+       name: branch.name || 'Unknown Branch'
+     }))
+     console.log('Fetched branches:', formattedBranches.length, 'branches')
+     setBranches(formattedBranches)
+   } else {
+     console.warn('Invalid branches response format:', result)
+     setBranches([])
+   }
   } catch (err) {
    console.error('Fetch branches error:', err)
    // Don't set error state for branches, just log it
@@ -179,13 +193,10 @@ export function AdminTimeEntriesPage() {
    filtered = filtered.filter(entry => entry.status === statusFilter)
   }
 
-  // Branch filter (client-side filtering for better UX)
-  if (branchFilter !== 'all') {
-   filtered = filtered.filter(entry => entry.branchName === branchFilter)
-  }
+  // Branch filter is handled server-side by API, no need for client-side filtering
 
   setFilteredEntries(filtered)
- }, [timeEntries, searchTerm, statusFilter, branchFilter])
+ }, [timeEntries, searchTerm, statusFilter])
 
  // Refetch data when filters change
  useEffect(() => {
@@ -246,8 +257,7 @@ export function AdminTimeEntriesPage() {
   }
  }
 
- // Use branches from API instead of derived from time entries
- const uniqueBranches = branches.map(branch => branch.name)
+ // Branches are already loaded from API, no need to derive from time entries
 
  // Handle view details button click
  const handleViewDetails = (timeEntryId: string) => {
@@ -354,8 +364,8 @@ export function AdminTimeEntriesPage() {
         </SelectTrigger>
         <SelectContent>
          <SelectItem value="all">ทั้งหมด</SelectItem>
-         {uniqueBranches.map(branch => (
-          <SelectItem key={branch} value={branch}>{branch}</SelectItem>
+         {branches.map(branch => (
+          <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
          ))}
         </SelectContent>
        </Select>

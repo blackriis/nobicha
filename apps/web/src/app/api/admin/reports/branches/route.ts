@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
     const dateRange = searchParams.get('dateRange') || 'today'
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
+    const branchId = searchParams.get('branchId')
 
     // Calculate date filter
     const now = new Date()
@@ -67,11 +68,17 @@ export async function GET(request: NextRequest) {
         dateFilter = now.toISOString().split('T')[0]
     }
 
-    // Fetch all branches
-    const { data: branches, error: branchesError } = await adminClient
+    // Fetch all branches (or specific branch if branchId is provided)
+    let branchesQuery = adminClient
       .from('branches')
       .select('id, name, address')
       .order('name')
+    
+    if (branchId) {
+      branchesQuery = branchesQuery.eq('id', branchId)
+    }
+    
+    const { data: branches, error: branchesError } = await branchesQuery
 
     if (branchesError) {
       console.error('Branches query error:', branchesError)

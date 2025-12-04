@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { AdminLayout } from '@/components/admin/AdminLayout' 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -19,7 +19,8 @@ import {
  Activity,
  CalendarDays,
  Eye,
- Loader2
+ Loader2,
+ RefreshCw
 } from 'lucide-react'
 import Link from 'next/link'
 import { adminReportsService, type ReportSummary } from '@/lib/services/admin-reports.service'
@@ -91,41 +92,52 @@ function useAdminStats() {
  const [stats, setStats] = useState<ReportSummary | null>(null)
  const [loading, setLoading] = useState(true)
  const [error, setError] = useState<string | null>(null)
+ const [refreshTrigger, setRefreshTrigger] = useState(0)
+
+ const fetchStats = useCallback(async () => {
+  try {
+   setLoading(true)
+   setError(null)
+   
+   const result = await adminReportsService.getSummaryReport({ type: 'today' })
+   
+   if (result.success && result.data) {
+    setStats(result.data)
+   } else {
+    setError(result.error || 'เกิดข้อผิดพลาดในการดึงข้อมูล')
+   }
+  } catch (err) {
+   console.error('Error fetching admin stats:', err)
+   setError('เกิดข้อผิดพลาดในการดึงข้อมูล')
+  } finally {
+   setLoading(false)
+  }
+ }, [])
 
  useEffect(() => {
   let isMounted = true
   
-  const fetchStats = async () => {
-   try {
-    setLoading(true)
-    setError(null)
-    
-    const result = await adminReportsService.getSummaryReport({ type: 'today' })
-    
-    if (!isMounted) return
-    
-    if (result.success && result.data) {
-     setStats(result.data)
-    } else {
-     setError(result.error || 'เกิดข้อผิดพลาดในการดึงข้อมูล')
-    }
-   } catch (err) {
-    if (!isMounted) return
-    console.error('Error fetching admin stats:', err)
-    setError('เกิดข้อผิดพลาดในการดึงข้อมูล')
-   } finally {
-    if (isMounted) setLoading(false)
-   }
-  }
-
+  // Fetch immediately
   fetchStats()
+  
+  // Auto-refresh every 30 seconds
+  const interval = setInterval(() => {
+   if (isMounted) {
+    fetchStats()
+   }
+  }, 30000)
   
   return () => {
    isMounted = false
+   clearInterval(interval)
   }
+ }, [fetchStats, refreshTrigger])
+
+ const refresh = useCallback(() => {
+  setRefreshTrigger(prev => prev + 1)
  }, [])
 
- return { stats, loading, error }
+ return { stats, loading, error, refresh }
 }
 
 // Utility Functions
@@ -165,11 +177,11 @@ function createRecentActivity(stats: ReportSummary | null): ActivityItem[] {
    status: 'success'
   },
   {
-   title: 'ยอดขายวันนี้',
-   value: stats.sales.total,
-   total: stats.sales.total,
-   percentage: 100,
-   status: 'success'
+    title: 'ยอดขายวันนี้',
+    value: stats.sales.total,
+    total: stats.sales.total,
+    percentage: stats.sales.total > 0 ? 100 : 0,
+    status: stats.sales.total > 0 ? 'success' : 'warning'
   }
  ]
 }
@@ -203,7 +215,7 @@ const ErrorState = ({ error, onRetry }: { error: string; onRetry: () => void }) 
  </div>
 )
 
-const WelcomeSection = () => (
+const WelcomeSection = ({ onRefresh, isLoading }: { onRefresh: () => void; isLoading: boolean }) => (
  <div className="mb-8">
   <div className="flex items-center justify-between">
    <div>
@@ -215,6 +227,16 @@ const WelcomeSection = () => (
     </p>
    </div>
    <div className="flex items-center space-x-2">
+    <Button
+     variant="outline"
+     size="sm"
+     onClick={onRefresh}
+     disabled={isLoading}
+     className="gap-2"
+    >
+     <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+     รีเฟรช
+    </Button>
     <Badge variant="outline" className="flex items-center gap-1">
      <Activity className="h-3 w-3" />
      ออนไลน์
@@ -256,8 +278,8 @@ const StatsOverview = ({ stats }: { stats: ReportSummary }) => {
   },
   {
    title: 'วัตถุดิบทั้งหมด',
-   value: stats.materials.totalItems,
-   subtitle: `ใช้ไป ฿${stats.materials.recentUsageCost.toLocaleString()}`,
+   value: `฿${stats.materials.recentUsageCost.toLocaleString()}`,
+   subtitle: `ทั้งหมด ${stats.materials.totalItems} รายการ`,
    icon: Package,
    iconBg: 'bg-purple-50 dark:bg-purple-950',
    iconColor: 'text-purple-600'
@@ -384,14 +406,22 @@ const ActivityPanel = ({ recentActivity, stats }: { recentActivity: ActivityItem
         {activity.title === 'ยอดขายวันนี้' ? `฿${activity.value.toLocaleString()}` : `${activity.value}/${activity.total}`}
        </Badge>
       </div>
-      <Progress 
-       value={activity.percentage} 
-       className="h-2"
-       aria-label={`${activity.title}: ${activity.percentage}% ความคืบหน้า (${activity.value}/${activity.total})`}
-      />
-      <div className="text-xs text-muted-foreground">
-       {activity.title === 'ยอดขายวันนี้' ? `฿${activity.value.toLocaleString()}` : `${activity.percentage}% ความคืบหน้า`}
-      </div>
+      {activity.title === 'ยอดขายวันนี้' && activity.value === 0 ? (
+       <div className="text-xs text-muted-foreground italic">
+        ยังไม่มียอดขายในวันนี้
+       </div>
+      ) : (
+       <>
+        <Progress 
+         value={activity.percentage} 
+         className="h-2"
+         aria-label={`${activity.title}: ${activity.percentage}% ความคืบหน้า (${activity.value}/${activity.total})`}
+        />
+        <div className="text-xs text-muted-foreground">
+         {activity.title === 'ยอดขายวันนี้' ? `฿${activity.value.toLocaleString()}` : `${activity.percentage}% ความคืบหน้า`}
+        </div>
+       </>
+      )}
      </div>
     ))}
    </CardContent>
@@ -429,12 +459,12 @@ const ActivityPanel = ({ recentActivity, stats }: { recentActivity: ActivityItem
 )
 
 function AdminDashboard() {
- const { stats, loading, error } = useAdminStats()
+ const { stats, loading, error, refresh } = useAdminStats()
  
  const quickActions = useMemo(() => createQuickActions(stats), [stats])
  const recentActivity = useMemo(() => createRecentActivity(stats), [stats])
 
- if (loading) {
+ if (loading && !stats) {
   return (
    <AdminLayout>
     <LoadingState />
@@ -442,10 +472,10 @@ function AdminDashboard() {
   )
  }
 
- if (error) {
+ if (error && !stats) {
   return (
    <AdminLayout>
-    <ErrorState error={error} onRetry={() => window.location.reload()} />
+    <ErrorState error={error} onRetry={refresh} />
    </AdminLayout>
   )
  }
@@ -453,14 +483,14 @@ function AdminDashboard() {
  if (!stats) {
   return (
    <AdminLayout>
-    <ErrorState error="ไม่พบข้อมูลสถิติ" onRetry={() => window.location.reload()} />
+    <ErrorState error="ไม่พบข้อมูลสถิติ" onRetry={refresh} />
    </AdminLayout>
   )
  }
 
  return (
   <AdminLayout data-testid="admin-dashboard">
-   <WelcomeSection />
+   <WelcomeSection onRefresh={refresh} isLoading={loading} />
    <StatsOverview stats={stats} />
    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
     <QuickActionsSection quickActions={quickActions} />

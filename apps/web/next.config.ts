@@ -3,12 +3,9 @@ import path from "path";
 
 const nextConfig: NextConfig = {
   skipTrailingSlashRedirect: true,
-  skipMiddlewareUrlNormalize: true,
-  eslint: {
-    // Warning: This allows production builds to successfully complete even if
-    // your project has ESLint errors.
-    ignoreDuringBuilds: true,
-  },
+  skipProxyUrlNormalize: true, // Updated from skipMiddlewareUrlNormalize (deprecated in Next.js 16)
+  // eslint config removed - Next.js 16 no longer supports eslint in next.config.ts
+  // Use eslint.config.mjs instead
   typescript: {
     // !! WARN !!
     // Dangerously allow production builds to successfully complete even if
