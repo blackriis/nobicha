@@ -11,27 +11,30 @@ export async function POST(request: NextRequest) {
       return createRateLimitResponse(resetTime!);
     }
 
+    // Use user-scoped client for authentication
     const supabase = await createClient();
-    
+
     // Check authentication and admin role
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
       return NextResponse.json(
-        { error: 'ไม่ได้รับอนุญาต - กรุณาเข้าสู่ระบบ' }, 
+        { error: 'ไม่ได้รับอนุญาต - กรุณาเข้าสู่ระบบ' },
         { status: 401 }
       );
     }
 
-    // Verify admin role
-    const { data: userData, error: userError } = await supabase
+    // Use service role client to verify admin role (bypasses RLS)
+    const serviceSupabase = createSupabaseServerClient();
+    const { data: userData, error: userError } = await serviceSupabase
       .from('users')
       .select('role')
       .eq('id', user.id)
       .single();
 
     if (userError || !userData || userData.role !== 'admin') {
+      console.error('Admin role verification error:', { userError, userData, userId: user.id });
       return NextResponse.json(
-        { error: 'ไม่ได้รับอนุญาต - ต้องเป็น Admin เท่านั้น' }, 
+        { error: 'ไม่ได้รับอนุญาต - ต้องเป็น Admin เท่านั้น' },
         { status: 403 }
       );
     }
@@ -57,8 +60,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for overlapping payroll cycles
-    const { data: existingCycles, error: overlapError } = await supabase
+    // Check for overlapping payroll cycles (use service role client)
+    const { data: existingCycles, error: overlapError } = await serviceSupabase
       .from('payroll_cycles')
       .select('id, cycle_name, start_date, end_date')
       .or(`and(start_date.lte.${end_date},end_date.gte.${start_date})`);
@@ -73,7 +76,7 @@ export async function POST(request: NextRequest) {
 
     if (existingCycles && existingCycles.length > 0) {
       return NextResponse.json(
-        { 
+        {
           error: 'ช่วงวันที่ทับซ้อนกับรอบการจ่ายเงินเดือนที่มีอยู่แล้ว',
           conflicting_cycles: existingCycles
         },
@@ -81,8 +84,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for duplicate name
-    const { data: nameCheck, error: nameError } = await supabase
+    // Check for duplicate name (use service role client)
+    const { data: nameCheck, error: nameError } = await serviceSupabase
       .from('payroll_cycles')
       .select('id')
       .eq('cycle_name', name)
@@ -103,8 +106,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create new payroll cycle
-    const { data: newCycle, error: createError } = await supabase
+    // Create new payroll cycle (use service role client)
+    const { data: newCycle, error: createError } = await serviceSupabase
       .from('payroll_cycles')
       .insert({
         cycle_name: name,
@@ -208,7 +211,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Verify admin role using service client
-    const serviceSupabase = await createSupabaseServerClient();
+    const serviceSupabase = createSupabaseServerClient();
     const { data: userData, error: userError } = await serviceSupabase
       .from('users')
       .select('role')

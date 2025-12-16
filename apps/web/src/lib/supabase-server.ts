@@ -30,7 +30,7 @@ export const createClient = async () => {
 // Server client with service role for bypassing RLS (admin operations)
 // Uses @supabase/supabase-js directly (not SSR) to properly bypass RLS
 // Supports both sync and async usage for backward compatibility
-export const createSupabaseServerClient = () => {
+export const createSupabaseServerClient = (): ReturnType<typeof createSupabaseClient<Database>> => {
   // Check if service role key is available
   const serviceRoleKey = config.supabase.serviceRoleKey
   if (!serviceRoleKey) {
