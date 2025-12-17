@@ -2,31 +2,44 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { 
+import {
  validateSlipImageFile,
  createImagePreview,
  revokeImagePreview,
  formatFileSize,
  handleFileDrop,
- type ImagePreviewData 
+ compressImage,
+ type ImagePreviewData
 } from '@/lib/utils/file-upload.utils'
-import { Upload, X, FileImage, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { Upload, X, FileImage, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface SlipImageUploadProps {
  onImageSelect: (file: File | null) => void
  disabled?: boolean
  maxFileSize?: number // in MB, default 5MB
+ enableCompression?: boolean // เปิด/ปิดการบีบอัด
+ compressionOptions?: {
+  maxWidth?: number
+  quality?: number
+ }
 }
 
-export function SlipImageUpload({ 
- onImageSelect, 
+export function SlipImageUpload({
+ onImageSelect,
  disabled = false,
- maxFileSize = 5 
+ maxFileSize = 5,
+ enableCompression = true,
+ compressionOptions = {
+  maxWidth: 1024,
+  quality: 0.8
+ }
 }: SlipImageUploadProps) {
  const [preview, setPreview] = useState<ImagePreviewData | null>(null)
  const [dragActive, setDragActive] = useState(false)
  const [uploading, setUploading] = useState(false)
+ const [compressing, setCompressing] = useState(false)
+ const [originalSize, setOriginalSize] = useState<number | null>(null)
  const fileInputRef = useRef<HTMLInputElement>(null)
 
  // Cleanup preview URL on unmount
@@ -38,11 +51,12 @@ export function SlipImageUpload({
   }
  }, [preview])
 
- // Handle file selection
- const handleFileSelect = useCallback((file: File) => {
+ // Handle file selection with compression
+ const handleFileSelect = useCallback(async (file: File) => {
   if (disabled) return
 
   setUploading(true)
+  setOriginalSize(file.size)
 
   // Cleanup previous preview
   if (preview) {
@@ -50,7 +64,7 @@ export function SlipImageUpload({
    setPreview(null)
   }
 
-  // Validate file
+  // Validate original file
   const validation = validateSlipImageFile(file)
   if (!validation.valid) {
    toast.error(validation.errors[0])
@@ -58,8 +72,42 @@ export function SlipImageUpload({
    return
   }
 
+  let processedFile = file
+
+  // Apply compression if enabled
+  if (enableCompression) {
+   setCompressing(true)
+   try {
+    // Check if file needs compression (only compress if larger than 500KB)
+    if (file.size > 500 * 1024) {
+     processedFile = await compressImage(
+      file,
+      compressionOptions?.maxWidth || 1024,
+      compressionOptions?.quality || 0.8
+     )
+
+     const compressionRatio = ((file.size - processedFile.size) / file.size * 100).toFixed(1)
+     toast.success(`บีบอัดรูปภาพสำเร็จ ลดลง ${compressionRatio}%`)
+    }
+   } catch (error) {
+    console.error('Compression error:', error)
+    toast.error('การบีบอัดรูปภาพล้มเหลว ใช้ไฟล์ต้นฉบับ')
+    // Use original file if compression fails
+   } finally {
+    setCompressing(false)
+   }
+  }
+
+  // Validate processed file again (in case compression changed something)
+  const processedValidation = validateSlipImageFile(processedFile)
+  if (!processedValidation.valid) {
+   toast.error('ไฟล์ที่บีบอัดไม่ผ่านการตรวจสอบ')
+   setUploading(false)
+   return
+  }
+
   // Create preview
-  const previewData = createImagePreview(file)
+  const previewData = createImagePreview(processedFile)
   if (!previewData) {
    toast.error('ไม่สามารถสร้างตัวอย่างรูปภาพได้')
    setUploading(false)
@@ -67,10 +115,17 @@ export function SlipImageUpload({
   }
 
   setPreview(previewData)
-  onImageSelect(file)
+  onImageSelect(processedFile)
   setUploading(false)
-  toast.success('เลือกรูปภาพเรียบร้อยแล้ว')
- }, [disabled, preview, onImageSelect])
+
+  // Show success message
+  if (enableCompression && originalSize && originalSize !== processedFile.size) {
+   const savedSpace = formatFileSize(originalSize - processedFile.size)
+   toast.success(`เลือกรูปภาพเรียบร้อย (ประหยัดพื้นที่ ${savedSpace})`)
+  } else {
+   toast.success('เลือกรูปภาพเรียบร้อยแล้ว')
+  }
+ }, [disabled, preview, onImageSelect, enableCompression, compressionOptions, originalSize])
 
  // Handle file input change
  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -114,7 +169,8 @@ export function SlipImageUpload({
    setPreview(null)
   }
   onImageSelect(null)
-  
+  setOriginalSize(null)
+
   // Reset file input
   if (fileInputRef.current) {
    fileInputRef.current.value = ''
@@ -164,6 +220,12 @@ export function SlipImageUpload({
         <p className="text-xs text-green-600 mt-1">
          ขนาด: {formatFileSize(preview.size)}
         </p>
+        {/* Show compression info */}
+        {enableCompression && originalSize && originalSize !== preview.size && (
+         <p className="text-xs text-green-600">
+          ประหยัด: {formatFileSize(originalSize - preview.size)} ({((originalSize - preview.size) / originalSize * 100).toFixed(1)}%)
+         </p>
+        )}
         <p className="text-xs text-green-600">
          ประเภท: {preview.type}
         </p>
@@ -210,10 +272,24 @@ export function SlipImageUpload({
      onDragOver={handleDrag}
      onDrop={handleDrop}
     >
-     {uploading ? (
+     {uploading || compressing ? (
       <div className="flex flex-col items-center gap-3">
        <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent" />
-       <p className="text-sm text-gray-600">กำลังประมวลผล...</p>
+       <p className="text-sm text-gray-600">
+        {compressing ? (
+         <>
+          <Loader2 className="inline h-4 w-4 mr-2 animate-spin" />
+          กำลังบีบอัดรูปภาพ...
+         </>
+        ) : (
+         'กำลังประมวลผล...'
+        )}
+       </p>
+       {enableCompression && (
+        <p className="text-xs text-gray-500">
+         รูปภาพที่มีขนาดเกิน 500KB จะถูกบีบอัดอัตโนมัติ
+        </p>
+       )}
       </div>
      ) : (
       <div className="flex flex-col items-center gap-3">
@@ -225,6 +301,12 @@ export function SlipImageUpload({
         <p className="text-xs text-gray-500 mt-1">
          หรือลากและวางไฟล์รูปภาพ
         </p>
+        {enableCompression && (
+         <p className="text-xs text-blue-600 mt-2">
+          <Loader2 className="inline h-3 w-3 mr-1" />
+          บีบอัดอัตโนมัติ (สูงสุด {compressionOptions?.maxWidth || 1024}px, คุณภาพ {compressionOptions?.quality || 0.8})
+         </p>
+        )}
        </div>
       </div>
      )}
@@ -241,6 +323,9 @@ export function SlipImageUpload({
        <li>ไฟล์รูปภาพเท่านั้น (.jpg, .png, .webp)</li>
        <li>ขนาดไม่เกิน {maxFileSize}MB</li>
        <li>ควรเป็นรูปภาพที่ชัดเจนอ่านได้</li>
+       {enableCompression && (
+        <li>รูปภาพจะถูกบีบอัดอัตโนมัติเพื่อประสิทธิภาพ</li>
+       )}
       </ul>
      </div>
     </div>
