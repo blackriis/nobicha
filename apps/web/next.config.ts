@@ -37,7 +37,6 @@ const nextConfig: NextConfig = {
       './lib/web3/ethereum': false, 
       // Point webauthn to a mock file instead of ignoring it completely to avoid "WebAuthnApi is not a constructor" error
       './lib/webauthn': path.resolve(__dirname, 'src/lib/supabase-mocks.js'),
-      './packages/StorageAnalyticsClient': false,
       './lib/vectors': false,
       // Additional fixes for Vercel build errors
       './BlobDownloadBuilder': false, // Ignore this in @supabase/storage-js
