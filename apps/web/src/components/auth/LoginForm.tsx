@@ -11,6 +11,9 @@ import { ModeToggle } from '@/components/ui/mode-toggle'
 import { useAuth } from './AuthProvider'
 import { getRedirectUrl, type UserRole } from '@/lib/auth'
 import { AlertCircle } from 'lucide-react'
+import { useFormFocusManagement } from '@/hooks/useFocusManagement'
+import { loginRateLimiter } from '@/lib/utils/rate-limiter'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
 
 interface LoginFormProps {
  role: UserRole
@@ -23,20 +26,24 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
  const [password, setPassword] = useState('')
  const [loading, setLoading] = useState(false)
  const [error, setError] = useState('')
+ const [rateLimitError, setRateLimitError] = useState<string | null>(null)
 
  const { signIn } = useAuth()
  const router = useRouter()
  const searchParams = useSearchParams()
  const [redirectPath, setRedirectPath] = useState<string>('')
 
+ // Use focus management for form accessibility
+ const { containerRef, handleFormSubmit } = useFormFocusManagement(async () => {
+   await performLogin()
+ })
+
  // Get redirect path from query params or cookies
  useEffect(() => {
   const redirectTo = searchParams.get('redirectTo')
-  console.log('🔍 LoginForm: Found redirectTo in query:', redirectTo)
-  
+
   if (redirectTo) {
    setRedirectPath(redirectTo)
-   console.log('✅ LoginForm: Set redirect path from query:', redirectTo)
   } else {
    // If no query param, check cookies
    const getCookie = (name: string) => {
@@ -47,13 +54,11 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
     }
     return null
    }
-   
+
    const cookieRedirect = getCookie('redirectTo')
-   console.log('🔍 LoginForm: Found redirectTo in cookie:', cookieRedirect)
-   
+
    if (cookieRedirect) {
     setRedirectPath(cookieRedirect)
-    console.log('✅ LoginForm: Set redirect path from cookie:', cookieRedirect)
    }
   }
  }, [searchParams])
@@ -63,43 +68,46 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
   document.cookie = 'redirectTo=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
  }
 
- const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault()
+ const performLogin = async () => {
+  // Check rate limit first
+  const rateLimitResult = loginRateLimiter.check(identifier)
+
+  if (!rateLimitResult.allowed) {
+    setRateLimitError(rateLimitResult.message || 'คุณพยายามเข้าสู่ระบบบ่อยเกินไป กรุณารอสักครู่')
+    setError('')
+    return
+  }
+
   setError('')
+  setRateLimitError('')
   setLoading(true)
 
   try {
    await signIn(identifier, password)
-   
+
+   // Reset rate limit on successful login
+   loginRateLimiter.reset(identifier)
+
    // Use saved redirect path if available, otherwise use role-based default
-   const finalRedirectUrl = redirectPath && redirectPath.startsWith('/') 
-    ? redirectPath 
+   const finalRedirectUrl = redirectPath && redirectPath.startsWith('/')
+    ? redirectPath
     : getRedirectUrl(role)
-   
-   console.log('🚀 LoginForm: Redirecting to:', {
-    redirectPath,
-    finalRedirectUrl,
-    role,
-    isCustomPath: !!redirectPath && redirectPath.startsWith('/')
-   })
-   
+
    // Clear the redirect cookie after using it
    if (redirectPath) {
     clearRedirectCookie()
-    console.log('🧹 LoginForm: Cleared redirect cookie')
    }
-   
+
    router.push(finalRedirectUrl)
-   
+
   } catch (error: unknown) {
-   console.error('Login error:', error)
-   
+
    // Show user-friendly error messages
    let errorMessage = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'
-   
+
    if (error instanceof Error) {
     const errorMsg = error.message.toLowerCase()
-    
+
     // Network errors
     if (errorMsg.includes('เครือข่าย') || errorMsg.includes('network') || errorMsg.includes('failed to fetch')) {
      errorMessage = 'เกิดข้อผิดพลาดในการเชื่อมต่อเครือข่าย กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตและลองใหม่'
@@ -133,7 +141,7 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
      errorMessage = error.message
     }
    }
-   
+
    setError(errorMessage)
   } finally {
    setLoading(false)
@@ -141,19 +149,32 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
  }
 
  return (
-   <Card className="w-full">
-    <CardHeader className="space-y-1">
-     <CardTitle className="text-2xl font-bold text-center">
+   <Card className="w-full relative" role="main" aria-labelledby="login-title" ref={containerRef}>
+    {/* Loading overlay */}
+    {loading && (
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-lg">
+        <LoadingSpinner
+          size="lg"
+          color="primary"
+          message="กำลังเข้าสู่ระบบ..."
+        />
+      </div>
+    )}
+
+    <CardHeader className="space-y-1 p-3 sm:p-6">
+     <CardTitle id="login-title" className="text-lg sm:text-2xl font-bold text-center">
       {title}
      </CardTitle>
-     <CardDescription className="text-center">
+     <CardDescription className="text-center text-sm sm:text-base">
       {description}
      </CardDescription>
     </CardHeader>
-    <CardContent>
-     <form onSubmit={handleSubmit} className="space-y-4">
+    <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+     <form onSubmit={handleFormSubmit} className="space-y-3 sm:space-y-4" noValidate aria-describedby={
+    (error ? "error-message" : "") + (rateLimitError ? " rate-limit-message" : "") || undefined
+  }>
       <div className="space-y-2">
-       <Label htmlFor="identifier">Username หรืออีเมล</Label>
+       <Label htmlFor="identifier" className="text-sm sm:text-base">Username หรืออีเมล</Label>
        <Input
         id="identifier"
         data-testid="identifier-input"
@@ -163,13 +184,16 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
         onChange={(e) => setIdentifier(e.target.value)}
         required
         disabled={loading}
-        className="w-full"
+        className="w-full h-10 sm:h-10 text-sm sm:text-base"
         autoComplete="username"
+        aria-label="Username หรืออีเมล"
+        aria-describedby={identifier && !identifier.match(/\S/) ? "identifier-error" : undefined}
+        aria-invalid={identifier === '' ? false : undefined}
        />
       </div>
-      
+
       <div className="space-y-2">
-       <Label htmlFor="password">รหัสผ่าน</Label>
+       <Label htmlFor="password" className="text-sm sm:text-base">รหัสผ่าน</Label>
        <Input
         id="password"
         data-testid="password-input"
@@ -179,15 +203,43 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
         onChange={(e) => setPassword(e.target.value)}
         required
         disabled={loading}
-        className="w-full"
+        className="w-full h-10 sm:h-10 text-sm sm:text-base"
+        aria-label="รหัสผ่าน"
+        aria-describedby="password-help"
+        aria-required="true"
+        minLength={6}
        />
+       <p id="password-help" className="sr-only">
+         รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร
+       </p>
       </div>
 
       {error && (
-       <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertDescription>
+       <Alert
+        variant="destructive"
+        className="p-3 sm:p-4"
+        role="alert"
+        aria-live="assertive"
+        id="error-message"
+       >
+        <AlertCircle className="h-4 w-4" aria-hidden="true" />
+        <AlertDescription className="text-sm">
          {error}
+        </AlertDescription>
+       </Alert>
+      )}
+
+      {rateLimitError && (
+       <Alert
+        variant="destructive"
+        className="p-3 sm:p-4 border-orange-200 bg-orange-50"
+        role="alert"
+        aria-live="assertive"
+        id="rate-limit-message"
+       >
+        <AlertCircle className="h-4 w-4" aria-hidden="true" />
+        <AlertDescription className="text-sm">
+         {rateLimitError}
         </AlertDescription>
        </Alert>
       )}
@@ -196,10 +248,22 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
        type="submit"
        data-testid="login-button"
        disabled={loading || !identifier || !password}
-       className="w-full"
+       className="w-full h-10 sm:h-10 text-sm sm:text-base flex items-center justify-center gap-2"
+       aria-describedby="submit-help"
       >
-       {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
+       {loading ? (
+        <>
+         <LoadingSpinner size="sm" color="white" />
+         <span>กำลังเข้าสู่ระบบ...</span>
+        </>
+       ) : (
+        'เข้าสู่ระบบ'
+       )}
       </Button>
+
+      <div id="submit-help" className="sr-only">
+        กรุณากรอกข้อมูลให้ครบถ้วนก่อนกดปุ่มเข้าสู่ระบบ
+      </div>
      </form>
      
      <div className="mt-4 text-center">
