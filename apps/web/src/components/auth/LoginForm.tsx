@@ -6,9 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ModeToggle } from '@/components/ui/mode-toggle'
 import { useAuth } from './AuthProvider'
 import { getRedirectUrl, type UserRole } from '@/lib/auth'
+import { AlertCircle } from 'lucide-react'
 
 interface LoginFormProps {
  role: UserRole
@@ -182,9 +184,12 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
       </div>
 
       {error && (
-       <div className="text-red-500 dark:text-red-400 text-sm text-center bg-red-50 dark:bg-red-950/50 p-2 rounded">
-        {error}
-       </div>
+       <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+         {error}
+        </AlertDescription>
+       </Alert>
       )}
 
       <Button
@@ -198,9 +203,9 @@ export function LoginForm({ role, title, description }: LoginFormProps) {
      </form>
      
      <div className="mt-4 text-center">
-      <p className="text-sm text-gray-600">
-       {role === 'employee' 
-        ? 'สำหรับพนักงานทั่วไป' 
+      <p className="text-sm text-muted-foreground">
+       {role === 'employee'
+        ? 'สำหรับพนักงานทั่วไป'
         : 'สำหรับผู้ดูแลระบบเท่านั้น'
        }
       </p>
