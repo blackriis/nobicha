@@ -131,7 +131,7 @@ export function SlipImageUpload({
  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
   const files = event.target.files
   if (files && files.length > 0) {
-   handleFileSelect(files[0])
+   handleFileSelect(files[0]).catch(console.error)
   }
  }
 
@@ -157,7 +157,7 @@ export function SlipImageUpload({
 
   handleFileDrop(
    e.nativeEvent,
-   handleFileSelect,
+   (file) => handleFileSelect(file).catch(console.error),
    (error) => toast.error(error)
   )
  }, [disabled, handleFileSelect])
