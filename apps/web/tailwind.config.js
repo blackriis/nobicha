@@ -24,6 +24,9 @@ module.exports = {
   		screens: {
   			'xs': '475px', // Extra small devices
   		},
+  		fontFamily: {
+  			sans: ['var(--font-anuphan)', 'Anuphan', 'sans-serif'],
+  		},
   		colors: {
   			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
