@@ -1,6 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authRateLimiter } from '@/lib/rate-limit'
 import { createClient, createSupabaseServerClient } from '@/lib/supabase-server'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { config } from '@employee-management/config'
+
+// Helper to authenticate using both cookies and bearer token
+async function authenticateUser(request: NextRequest) {
+  // First try cookie-based authentication
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+  if (!authError && user) {
+    return { user, error: null }
+  }
+
+  // If cookie auth fails, try bearer token
+  const authHeader = request.headers.get('authorization')
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.substring(7)
+
+    try {
+      // Create a temporary client with the token
+      const tokenClient = createSupabaseClient(
+        config.supabase.url,
+        config.supabase.anonKey,
+        {
+          global: {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          },
+          auth: {
+            persistSession: false
+          }
+        }
+      )
+
+      const { data: { user: tokenUser }, error: tokenError } = await tokenClient.auth.getUser(token)
+
+      if (!tokenError && tokenUser) {
+        return { user: tokenUser, error: null }
+      }
+    } catch (error) {
+      console.warn('Bearer token authentication failed:', error)
+    }
+  }
+
+  return { user: null, error: authError || new Error('No valid authentication') }
+}
 
 // GET /api/admin/reports/summary - Get overall summary statistics
 export async function GET(request: NextRequest) {
@@ -14,9 +61,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Authentication check (cookie-based)
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    // Authentication check (cookie-based or bearer token)
+    const { user, error: authError } = await authenticateUser(request)
 
     if (authError || !user) {
       return NextResponse.json(

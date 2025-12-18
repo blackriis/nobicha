@@ -93,6 +93,13 @@ vi.mock('@/components/ui/card', () => ({
   CardTitle: ({ children, className }: CardProps) => React.createElement('div', { className }, children),
 }))
 
+vi.mock('@/components/ui/alert', () => ({
+  Alert: ({ children, className }: { children: React.ReactNode, className?: string }) =>
+    React.createElement('div', { className, role: 'alert' }, children),
+  AlertDescription: ({ children }: { children: React.ReactNode }) =>
+    React.createElement('div', { children }),
+}))
+
 vi.mock('@/components/ui/badge', () => ({
   Badge: ({ children, className }: CardProps) => React.createElement('span', { className }, children),
 }))
@@ -144,6 +151,31 @@ vi.mock('lucide-react', () => ({
   Filter: () => React.createElement('div', { 'data-testid': 'filter-icon' }),
   Download: () => React.createElement('div', { 'data-testid': 'download-icon' }),
   UserPlus: () => React.createElement('div', { 'data-testid': 'user-plus-icon' }),
+  AlertCircle: () => React.createElement('div', { 'data-testid': 'alert-circle-icon' }),
+}))
+
+// Mock mode toggle
+vi.mock('@/components/ui/mode-toggle', () => ({
+  ModeToggle: () => React.createElement('div', { 'data-testid': 'mode-toggle' }),
+}))
+
+// Mock loading spinner
+vi.mock('@/components/ui/loading-spinner', () => ({
+  LoadingSpinner: ({ message }: { message?: string }) =>
+    React.createElement('div', { 'data-testid': 'loading-spinner' }, message),
+  default: ({ message }: { message?: string }) =>
+    React.createElement('div', { 'data-testid': 'loading-spinner' }, message),
+}))
+
+// Mock AuthProvider
+vi.mock('@/components/auth/AuthProvider', () => ({
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+  useAuth: vi.fn(() => ({
+    user: null,
+    loading: false,
+    signIn: vi.fn(),
+    signOut: vi.fn(),
+  })),
 }))
 
 // Mock window.confirm for component tests

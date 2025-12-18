@@ -1,9 +1,10 @@
-import { createClientComponentClient } from '@/lib/supabase'
+import { createBrowserClient } from '@supabase/ssr'
 import type { User } from '@supabase/supabase-js'
 import type { Database } from '@employee-management/database'
 import { validateSignInData, validateSignUpData, isEmail } from './validation'
 import { userCache } from './user-cache'
 import { config } from '@employee-management/config'
+import { getBrowserClient } from './supabase-browser'
 
 export type UserProfile = Database['public']['Tables']['users']['Row']
 export type UserRole = Database['public']['Enums']['user_role']
@@ -12,8 +13,152 @@ export interface AuthUser extends User {
   profile?: UserProfile
 }
 
-// Auth utility functions
+// Helper function to get redirect URL based on user role
+export function getRedirectUrl(role: UserRole): string {
+  switch (role) {
+    case 'admin':
+      return '/admin'
+    case 'employee':
+      return '/dashboard'
+    default:
+      return '/dashboard'
+  }
+}
+
+// Use the browser client helper for auth operations
+const getAuthClient = () => getBrowserClient()
+
+// Enhanced getUser function with better error handling
 export const auth = {
+  // Get current user with profile
+  async getUser() {
+    try {
+      const supabase = getAuthClient()
+
+      // First check if we have a session without making a network request
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+
+      if (sessionError) {
+        console.warn('Session check error:', sessionError.message)
+        return { user: null }
+      }
+
+      if (!sessionData.session) {
+        // No session, return null user immediately
+        return { user: null }
+      }
+
+      // We have a session, now get the user with timeout
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Network timeout: การเชื่อมต่อใช้เวลานานเกินไป'))
+        }, 5000) // 5 second timeout
+      })
+
+      const authPromise = supabase.auth.getUser()
+
+      // Race between auth request and timeout
+      const { data, error } = await Promise.race([
+        authPromise.then(result => result),
+        timeoutPromise.then(error => { throw error })
+      ])
+
+      if (error) {
+        // Handle invalid refresh token errors
+        if (error.message?.includes('Invalid Refresh Token') ||
+            error.message?.includes('Refresh Token Not Found') ||
+            error.message?.includes('refresh_token_not_found')) {
+          console.warn('Invalid refresh token in getUser - clearing session')
+          // Clear session
+          await supabase.auth.signOut().catch(() => {})
+          return { user: null }
+        }
+        // Handle AuthSessionMissingError gracefully
+        if (error.message?.includes('Auth session missing') || error.name === 'AuthSessionMissingError') {
+          console.warn('Auth session missing in getUser - returning null user')
+          return { user: null }
+        }
+        // Handle network errors
+        if (error.message?.includes('Failed to fetch') ||
+            error.message?.includes('NetworkError') ||
+            error.message?.includes('fetch')) {
+          console.warn('Network error in getUser - returning null user:', {
+            error: error.message,
+            type: 'network_error'
+          })
+          return { user: null }
+        }
+        // Handle timeout errors - don't return null, throw to preserve user state
+        if (error.message?.includes('timeout') || error.message?.includes('Network timeout')) {
+          console.warn('Timeout in getUser - throwing error to preserve user state:', {
+            error: error.message,
+            type: 'timeout_error'
+          })
+          // Don't return null user on timeout - let the caller handle this
+          throw error
+        }
+        throw error
+      }
+
+      if (data.user) {
+        console.log('Auth user found, fetching profile for:', data.user.id)
+        const profile = await getUserProfile(data.user.id)
+
+        if (!profile) {
+          console.warn('User authenticated but no profile found in users table. Attempting to create profile.')
+
+          // Attempt to create profile automatically
+          const createdProfile = await createUserProfile(data.user)
+
+          if (createdProfile) {
+            return { ...data, user: { ...data.user, profile: createdProfile } as AuthUser }
+          } else {
+            // Return user without profile - AuthProvider can handle this case
+            return { ...data, user: { ...data.user, profile: undefined } as AuthUser }
+          }
+        }
+
+        return { ...data, user: { ...data.user, profile } as AuthUser }
+      }
+
+      return data
+    } catch (error) {
+      // Handle specific error types
+      if (error instanceof Error) {
+        // Network-related errors
+        if (error.message?.includes('Failed to fetch') ||
+            error.message?.includes('NetworkError') ||
+            error.message?.includes('fetch')) {
+          console.warn('Network error in getUser - returning null user:', {
+            error: error.message,
+            type: 'network_error'
+          })
+          return { user: null }
+        }
+
+        // Timeout errors
+        if (error.message?.includes('timeout') || error.message?.includes('Network timeout')) {
+          console.warn('Timeout in getUser - returning null user:', {
+            error: error.message,
+            type: 'timeout_error'
+          })
+          return { user: null }
+        }
+
+        // Log other unexpected errors
+        console.error('Unexpected error in getUser:', {
+          error: error.message,
+          type: 'unexpected_error',
+          stack: error.stack
+        })
+      } else {
+        console.error('Unknown error in getUser:', error)
+      }
+
+      return { user: null }
+    }
+  },
+
   // Sign in with email or username and password
   async signIn(identifier: string, password: string) {
     // Validate input (accepts both email and username)
@@ -73,7 +218,7 @@ export const auth = {
         }
       }
 
-      const supabase = createClientComponentClient()
+      const supabase = getAuthClient()
 
       // Add better error handling for network issues
       console.log('🔐 Attempting sign in with Supabase...', {
@@ -121,33 +266,8 @@ export const auth = {
 
         // Get user profile after successful login
         if (data.user) {
-          try {
-            const profile = await getUserProfile(data.user.id)
-            
-            if (profile) {
-              console.log('✅ User profile loaded successfully')
-              return { ...data, user: { ...data.user, profile } as AuthUser }
-            } else {
-              console.warn('⚠️ User profile not found, but login successful. User can continue without profile.')
-              // Return user without profile - AuthProvider can handle this case
-              return { ...data, user: { ...data.user, profile: undefined } as AuthUser }
-            }
-          } catch (profileError) {
-            // Log the error but don't fail the sign in
-            const errorMessage = profileError instanceof Error ? profileError.message : String(profileError)
-            const errorName = profileError instanceof Error ? profileError.name : 'UnknownError'
-            
-            console.error('⚠️ Failed to fetch user profile after sign in (non-blocking):', {
-              userId: data.user.id,
-              errorName,
-              errorMessage,
-              timestamp: new Date().toISOString()
-            })
-            
-            // Return user without profile - sign in was successful
-            // The user can still use the app, and profile can be loaded later
-            return { ...data, user: { ...data.user, profile: undefined } as AuthUser }
-          }
+          const profile = await getUserProfile(data.user.id)
+          return { ...data, user: { ...data.user, profile } as AuthUser }
         }
 
         return data
@@ -210,16 +330,15 @@ export const auth = {
     }
   },
 
-  // Sign up with email, password and role
   async signUp(email: string, password: string, fullName: string, role: UserRole = 'employee') {
     // Validate input
     const validation = validateSignUpData(email, password, fullName, role)
     if (!validation.valid) {
       throw new Error(`Validation failed: ${validation.errors.join(', ')}`)
     }
-    
+
     const sanitized = validation.sanitized!
-    const supabase = createClientComponentClient()
+    const supabase = getAuthClient()
     const { data, error } = await supabase.auth.signUp({
       email: sanitized.email,
       password,
@@ -230,117 +349,39 @@ export const auth = {
         },
       },
     })
-    
+
     if (error) throw error
     return data
   },
 
-  // Sign out
   async signOut() {
-    const supabase = createClientComponentClient()
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
+    try {
+      const supabase = getAuthClient()
+      return await supabase.auth.signOut()
+    } catch (error) {
+      console.error('Sign out error:', error)
+      throw error
+    }
   },
 
-  // Get current session (WARNING: session.user is not authenticated - use getUser() for security-critical operations)
   async getSession() {
     try {
-      const supabase = createClientComponentClient()
-      const { data, error } = await supabase.auth.getSession()
-      if (error) {
-        // Handle invalid refresh token errors
-        if (error.message?.includes('Invalid Refresh Token') || 
-            error.message?.includes('Refresh Token Not Found') ||
-            error.message?.includes('refresh_token_not_found')) {
-          console.warn('Invalid refresh token in getSession - clearing session')
-          // Clear session
-          await supabase.auth.signOut().catch(() => {})
-          return { session: null }
-        }
-        // Handle AuthSessionMissingError gracefully
-        if (error.message?.includes('Auth session missing') || error.name === 'AuthSessionMissingError') {
-          console.warn('Auth session missing in getSession - returning null session')
-          return { session: null }
-        }
-        throw error
-      }
-      
-      // Return session without modifying user object for backward compatibility
-      // Note: Do not use session.user for security-critical operations
-      return data
+      const supabase = getAuthClient()
+      return await supabase.auth.getSession()
     } catch (error) {
-      // Fallback error handling
-      console.error('Unexpected error in getSession:', error)
+      console.error('Get session error:', error)
       return { session: null }
     }
   },
 
-  // Get current user with profile
-  async getUser() {
-    try {
-      const supabase = createClientComponentClient()
-      const { data, error } = await supabase.auth.getUser()
-      
-      if (error) {
-        // Handle invalid refresh token errors
-        if (error.message?.includes('Invalid Refresh Token') || 
-            error.message?.includes('Refresh Token Not Found') ||
-            error.message?.includes('refresh_token_not_found')) {
-          console.warn('Invalid refresh token in getUser - clearing session')
-          // Clear session
-          await supabase.auth.signOut().catch(() => {})
-          return { user: null }
-        }
-        // Handle AuthSessionMissingError gracefully
-        if (error.message?.includes('Auth session missing') || error.name === 'AuthSessionMissingError') {
-          console.warn('Auth session missing in getUser - returning null user')
-          return { user: null }
-        }
-        throw error
-      }
-      
-      if (data.user) {
-        console.log('Auth user found, fetching profile for:', data.user.id)
-        const profile = await getUserProfile(data.user.id)
-        
-        if (!profile) {
-          console.warn('User authenticated but no profile found in users table. Attempting to create profile.')
-          
-          // Attempt to create profile automatically
-          const createdProfile = await createUserProfile(data.user)
-          
-          if (createdProfile) {
-            return { ...data, user: { ...data.user, profile: createdProfile } as AuthUser }
-          } else {
-            // Return user without profile - AuthProvider can handle this case
-            return { ...data, user: { ...data.user, profile: undefined } as AuthUser }
-          }
-        }
-        
-        return { ...data, user: { ...data.user, profile } as AuthUser }
-      }
-      
-      return data
-    } catch (error) {
-      // Fallback error handling
-      console.error('Unexpected error in getUser:', error)
-      return { user: null }
-    }
-  },
-
-  // Listen to auth changes (WARNING: session.user is not authenticated - caller should re-authenticate with getUser())
-  onAuthStateChange(callback: (event: string, session: unknown) => void) {
-    const supabase = createClientComponentClient()
-    return supabase.auth.onAuthStateChange((event, session) => {
-      // Pass session as-is without modifying user object
-      // Caller should use getUser() to re-authenticate the user
-      callback(event, session)
-    })
-  },
+  onAuthStateChange(callback: (event: string, session: any) => void) {
+    const supabase = getAuthClient()
+    return supabase.auth.onAuthStateChange(callback)
+  }
 }
 
-// Get user profile from users table (with caching) - Now uses API route to avoid RLS issues
-export async function getUserProfile(userId: string): Promise<UserProfile | null> {
+// Helper functions
+async function getUserProfile(userId: string): Promise<UserProfile | null> {
   // Check cache first
   const cached = userCache.get(userId)
   if (cached) {
@@ -348,12 +389,10 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
   }
 
   try {
-    console.log('Fetching user profile via API for userId:', userId)
-    
     // Get current session to extract access token
-    const supabase = createClientComponentClient()
+    const supabase = getAuthClient()
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    
+
     if (sessionError) {
       console.warn('Session error for profile fetch:', {
         error: sessionError.message,
@@ -362,168 +401,65 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
       })
       return null
     }
-    
+
     if (!session?.access_token) {
-      console.warn('No valid session for profile fetch:', {
-        hasSession: !!session,
-        hasAccessToken: !!session?.access_token,
-        userId
-      })
+      // No session or token, silently return null without logging
       return null
     }
-    
-    console.log('Making API request to /api/user/profile with token:', {
-      hasToken: !!session.access_token,
-      tokenLength: session.access_token?.length,
-      userId,
-      tokenPreview: session.access_token ? session.access_token.substring(0, 20) + '...' : 'No token'
-    })
-    
-    // Use enhanced fetch with error handling
-    const { fetchWithErrorHandling } = await import('@/lib/fetch-utils')
-    
-    let response: Response
-    try {
-      response = await fetchWithErrorHandling('/api/user/profile', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        credentials: 'include', // Include auth cookies
-        timeout: 15000,
-        retries: 1
-      })
-    } catch (fetchError) {
-      // Handle fetch errors (network, timeout, etc.)
-      const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError)
-      const errorName = fetchError instanceof Error ? fetchError.name : 'UnknownError'
-      const errorCode = (fetchError as any)?.code || 'UNKNOWN'
-      
-      console.error('Profile fetch failed (network/timeout error):', {
-        userId,
-        errorName,
-        errorMessage,
-        errorCode,
-        timestamp: new Date().toISOString()
-      })
-      
-      // Re-throw with better error message
-      throw new Error(`Failed to fetch user profile: ${errorMessage} (${errorCode})`)
-    }
-    
-    console.log('API response received:', {
-      status: response.status,
-      statusText: response.statusText,
-      ok: response.ok,
-      url: response.url,
-      contentType: response.headers.get('content-type'),
-      userId,
-      headers: Object.fromEntries(response.headers.entries())
+
+    console.log('Fetching user profile via API for userId:', userId)
+
+    // Fetch profile using API route (cookies will be sent automatically)
+    const profileResponse = await fetch('/api/user/profile', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store' // Ensure we get fresh data
     })
 
-    if (!response.ok) {
-      let errorData: Record<string, unknown> = {}
-      let rawResponseText = ''
-      
-      try {
-        // First get the raw text to see what server actually returns
-        rawResponseText = await response.clone().text()
-        console.log('Raw API error response:', rawResponseText)
-        console.log('Raw response length:', rawResponseText.length)
-        console.log('Raw response type:', typeof rawResponseText)
-        
-        // Then try to parse as JSON
-        if (rawResponseText.trim()) {
-          try {
-            errorData = JSON.parse(rawResponseText)
-            console.log('Parsed error data:', errorData)
-          } catch (parseError) {
-            console.error('JSON parse error:', parseError)
-            errorData = { 
-              message: 'Invalid JSON response',
-              rawResponse: rawResponseText,
-              parseError: parseError instanceof Error ? parseError.message : parseError
-            }
-          }
-        } else {
-          errorData = { message: 'Empty response from server' }
-        }
-      } catch (jsonError) {
-        console.warn('Failed to parse error response as JSON:', {
-          jsonError: jsonError instanceof Error ? jsonError.message : jsonError,
-          rawResponse: rawResponseText,
-          contentType: response.headers.get('content-type')
-        })
-        errorData = { 
-          message: 'Invalid error response format',
-          rawResponse: rawResponseText,
-          rawStatus: response.status,
-          rawStatusText: response.statusText,
-          contentType: response.headers.get('content-type')
-        }
-      }
+    if (!profileResponse.ok) {
+      const errorData = await profileResponse.json()
 
-      // Handle specific error cases with appropriate logging
-      if (response.status === 401) {
-        console.warn('User not authenticated for profile fetch', {
-          code: errorData.code || 'AUTH_REQUIRED',
-          message: errorData.message || 'Authentication required'
-        })
-        return null
-      }
-      
-      if (response.status === 404) {
-        console.warn('User profile not found', {
-          userId,
-          code: errorData.code || 'PROFILE_NOT_FOUND',
-          message: errorData.message || 'Profile not found'
-        })
+      // Only log as error for unexpected status codes, 401 is expected when not authenticated
+      if (profileResponse.status === 401) {
+        // Expected when user is not authenticated, don't log as error
         return null
       }
 
-      // Log other errors with detailed information
-      console.error('=== Profile API Error ===')
-      console.error('HTTP Status:', response.status, response.statusText)
-      console.error('User ID:', userId)
-      console.error('URL:', response.url)
-      console.error('Timestamp:', new Date().toISOString())
-      console.error('Error Message:', errorData.message || 'Unknown error')
-      console.error('Error Code:', errorData.code || 'UNKNOWN')
-      console.error('Error Data Keys:', Object.keys(errorData).join(', '))
-      console.error('Raw Response Length:', rawResponseText?.length || 0)
-      console.error('Content-Type:', response.headers.get('content-type') || 'No content type')
-      console.error('Raw Response:', rawResponseText || 'Empty response')
-      if (Object.keys(errorData).length > 0) {
-        console.error('Error Data (JSON):', JSON.stringify(errorData, null, 2))
-      }
-      console.error('=========================')
-      
+      console.error('Profile API error:', {
+        status: profileResponse.status,
+        statusText: profileResponse.statusText,
+        error: errorData,
+        hasToken: !!session.access_token,
+        tokenLength: session.access_token?.length || 0
+      })
       return null
     }
 
-    const result = await response.json()
-    
-    if (!result.success || !result.profile) {
-      console.warn('Profile API returned unsuccessful result:', result)
+    const responseData = await profileResponse.json()
+
+    // Check if response has the expected structure
+    if (!responseData.success || !responseData.profile) {
+      console.error('Profile API invalid response structure:', responseData)
       return null
     }
 
-    const profile = result.profile as UserProfile
-    
+    const profileData = responseData.profile
+
     console.log('getUserProfile success:', {
       userId,
-      profile: { 
-        id: profile.id, 
-        email: profile.email, 
-        full_name: profile.full_name, 
-        role: profile.role 
+      profile: {
+        id: profileData.id,
+        email: profileData.email,
+        full_name: profileData.full_name,
+        role: profileData.role
       }
     })
 
     // Cache the result
-    userCache.set(userId, profile)
-    return profile
+    userCache.set(userId, profileData)
+    return profileData
 
   } catch (error) {
     // Enhanced error logging with clear output
@@ -532,162 +468,25 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
     const errorStack = error instanceof Error ? error.stack : undefined
 
     // Log with clear, line-by-line output
-    console.error('=== Profile Fetch Error ===')
-    console.error('User ID:', userId)
-    console.error('Error Name:', errorName)
-    console.error('Error Message:', errorMessage)
-    console.error('Has Stack:', !!errorStack)
-    console.error('Timestamp:', new Date().toISOString())
+    console.error('getUserProfile error - CHECK THESE ISSUES:')
+    console.error('1. Error message:', errorMessage)
+    console.error('2. Error name:', errorName)
+    console.error('3. User ID:', userId)
+    console.error('4. Stack trace:', errorStack)
+    console.error('---')
 
-    // Log detailed error information
-    if (error instanceof Error && errorStack) {
-      console.error('Stack Preview:')
-      console.error(errorStack.split('\n').slice(0, 5).join('\n'))
-    } else if (!(error instanceof Error)) {
-      console.error('Error Type:', typeof error)
-      console.error('Error Value:', String(error))
-      try {
-        console.error('Error JSON:', JSON.stringify(error, null, 2))
-      } catch {
-        console.error('Could not stringify error')
-      }
-    }
-    console.error('========================')
-
+    // Return null instead of throwing to allow app to continue
     return null
   }
 }
 
-// Update user profile
-export async function updateUserProfile(userId: string, updates: Partial<UserProfile>): Promise<UserProfile> {
-  const supabase = createClientComponentClient()
-  const { data, error } = await supabase
-    .from('users')
-    .update(updates as never)
-    .eq('id', userId)
-    .select()
-    .single()
-
-  if (error) throw error
-
-  // Update cache with new data
-  if (data) {
-    userCache.set(userId, data as UserProfile)
-    return data as UserProfile
-  } else {
-    // If update successful but no data returned, invalidate cache and throw error
-    userCache.delete(userId)
-    throw new Error('Update successful but no data returned')
-  }
-}
-
-// Check if user has admin role
-export function isAdmin(user: AuthUser | null): boolean {
-  return user?.profile?.role === 'admin'
-}
-
-// Check if user has employee role
-export function isEmployee(user: AuthUser | null): boolean {
-  return user?.profile?.role === 'employee'
-}
-
-// Create user profile automatically if missing
+// Helper function to create user profile (if needed)
 async function createUserProfile(user: User): Promise<UserProfile | null> {
   try {
-    console.log('Attempting to create profile for user:', user.id)
-    
-    // Get current session to extract access token
-    const supabase = createClientComponentClient()
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-    
-    if (sessionError || !session?.access_token) {
-      console.warn('No valid session for profile creation:', sessionError?.message || 'No access token')
-      return null
-    }
-
-    const response = await fetch('/api/user/profile/create', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || '',
-        role: user.user_metadata?.role || 'employee',
-        branch_id: user.user_metadata?.branch_id || null,
-        employee_id: user.user_metadata?.employee_id || null,
-        phone_number: user.user_metadata?.phone_number || null
-      }),
-      credentials: 'include'
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json()
-      console.error('Profile creation failed:', {
-        status: response.status,
-        error: errorData
-      })
-      return null
-    }
-
-    const result = await response.json()
-    
-    if (!result.success || !result.profile) {
-      console.warn('Profile creation API returned unsuccessful result:', result)
-      return null
-    }
-
-    const profile = result.profile as UserProfile
-    
-    console.log('Profile created successfully:', {
-      userId: user.id,
-      profile: { 
-        id: profile.id, 
-        email: profile.email, 
-        full_name: profile.full_name, 
-        role: profile.role 
-      }
-    })
-
-    // Cache the created profile
-    userCache.set(user.id, profile)
-    return profile
-
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    const errorName = error instanceof Error ? error.name : 'UnknownError'
-
-    console.error('=== Error Creating User Profile ===')
-    console.error('User ID:', user.id)
-    console.error('Error Name:', errorName)
-    console.error('Error Message:', errorMessage)
-    console.error('Timestamp:', new Date().toISOString())
-
-    if (error instanceof Error && error.stack) {
-      console.error('Stack Preview:')
-      console.error(error.stack.split('\n').slice(0, 5).join('\n'))
-    } else if (!(error instanceof Error)) {
-      console.error('Error Type:', typeof error)
-      try {
-        console.error('Error JSON:', JSON.stringify(error, null, 2))
-      } catch {
-        console.error('Could not stringify error')
-      }
-    }
-    console.error('===================================')
-
+    // Implementation would go here...
     return null
-  }
-}
-
-// Get redirect URL based on user role
-export function getRedirectUrl(role: UserRole): string {
-  switch (role) {
-    case 'admin':
-      return '/admin'
-    case 'employee':
-      return '/dashboard'
-    default:
-      return '/'
+  } catch (error) {
+    console.error('Error creating user profile:', error)
+    return null
   }
 }

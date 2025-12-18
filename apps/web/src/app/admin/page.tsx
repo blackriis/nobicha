@@ -1,23 +1,22 @@
 'use client'
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useAuth } from '@/components/auth'
 import { AdminLayout } from '@/components/admin/AdminLayout' 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { Separator } from '@/components/ui/separator'
-import { 
- Users, 
- Building2, 
- Package, 
- Banknote, 
- TrendingUp, 
+import {
+ Users,
+ Building2,
+ Package,
+ Banknote,
+ TrendingUp,
  AlertCircle,
  CheckCircle2,
  ArrowRight,
  Activity,
- CalendarDays,
  Eye,
  Loader2,
  RefreshCw,
@@ -94,19 +93,23 @@ const QUICK_ACTIONS_CONFIG: QuickActionConfig[] = [
 ]
 
 // Custom Hooks
-function useAdminStats() {
+function useAdminStats(isAuthenticated: boolean) {
  const [stats, setStats] = useState<ReportSummary | null>(null)
- const [loading, setLoading] = useState(true)
+ const [loading, setLoading] = useState(false)
  const [error, setError] = useState<string | null>(null)
  const [refreshTrigger, setRefreshTrigger] = useState(0)
 
  const fetchStats = useCallback(async () => {
+  if (!isAuthenticated) {
+   return
+  }
+
   try {
    setLoading(true)
    setError(null)
-   
+
    const result = await adminReportsService.getSummaryReport({ type: 'today' })
-   
+
    if (result.success && result.data) {
     setStats(result.data)
    } else {
@@ -118,26 +121,29 @@ function useAdminStats() {
   } finally {
    setLoading(false)
   }
- }, [])
+ }, [isAuthenticated])
 
  useEffect(() => {
   let isMounted = true
-  
-  // Fetch immediately
-  fetchStats()
-  
-  // Auto-refresh every 30 seconds
-  const interval = setInterval(() => {
-   if (isMounted) {
-    fetchStats()
+
+  // Only fetch if authenticated
+  if (isAuthenticated) {
+   // Fetch immediately
+   fetchStats()
+
+   // Auto-refresh disabled - users can manually refresh using the refresh button
+   // const interval = setInterval(() => {
+   //  if (isMounted) {
+   //   fetchStats()
+   //  }
+   // }, 30000)
+
+   return () => {
+    isMounted = false
+    // clearInterval(interval)
    }
-  }, 30000)
-  
-  return () => {
-   isMounted = false
-   clearInterval(interval)
   }
- }, [fetchStats, refreshTrigger])
+ }, [fetchStats, refreshTrigger, isAuthenticated])
 
  const refresh = useCallback(() => {
   setRefreshTrigger(prev => prev + 1)
@@ -222,43 +228,47 @@ const ErrorState = ({ error, onRetry }: { error: string; onRetry: () => void }) 
 )
 
 const WelcomeSection = ({ onRefresh, isLoading }: { onRefresh: () => void; isLoading: boolean }) => (
- <div className="mb-4 sm:mb-6">
-  <div className="flex items-center justify-between gap-3">
-   {/* Compact Left Section */}
-   <div className="flex items-center gap-2 sm:gap-3">
-    <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-primary to-primary/80 shadow-md">
-     <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-primary-foreground" />
+ <div className="mb-6 sm:mb-8">
+  <div className="flex items-center justify-between gap-2 sm:gap-4">
+   {/* Left Section */}
+   <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+    <div className="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 md:w-12 md:h-12 rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-lg flex-shrink-0">
+     <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 text-primary-foreground" />
     </div>
-    <div>
-     <h1 className="text-base sm:text-lg font-semibold tracking-tight">
+    <div className="min-w-0">
+     <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold tracking-tight truncate">
       ภาพรวมระบบ
      </h1>
-     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-      <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-      <span>อัปเดตสด</span>
-     </div>
+     <p className="text-[10px] sm:text-xs md:text-sm text-muted-foreground truncate hidden sm:block">
+      ข้อมูลสรุปและสถิติล่าสุด
+     </p>
     </div>
    </div>
-   
-   {/* Compact Right Section */}
-   <div className="flex items-center gap-1.5 sm:gap-2">
+
+   {/* Right Section */}
+   <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+    <Badge variant="outline" className="gap-1 h-8 sm:h-9 md:h-10 px-2 sm:px-3 md:px-4 text-[10px] sm:text-xs md:text-sm hidden xs:flex">
+     <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5 md:h-4 md:w-4" />
+     <span className="hidden sm:inline">{new Date().toLocaleDateString('th-TH', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+     })}</span>
+     <span className="sm:hidden">{new Date().toLocaleDateString('th-TH', {
+      day: 'numeric',
+      month: 'short'
+     })}</span>
+    </Badge>
     <Button
      variant="outline"
      size="sm"
      onClick={onRefresh}
      disabled={isLoading}
-     className="gap-1.5 h-8 sm:h-9 px-2 sm:px-3"
+     className="gap-1.5 sm:gap-2 h-8 sm:h-9 md:h-10 px-2 sm:px-3 md:px-4"
     >
      <RefreshCw className={`h-3.5 w-3.5 sm:h-4 sm:w-4 ${isLoading ? 'animate-spin' : ''}`} />
-     <span className="hidden xs:inline text-xs sm:text-sm">อัปเดต</span>
+     <span className="text-[10px] sm:text-xs md:text-sm">อัปเดต</span>
     </Button>
-    <Badge variant="outline" className="gap-1 h-8 sm:h-9 px-2 sm:px-3 text-xs">
-     <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-     <span className="hidden sm:inline">{new Date().toLocaleDateString('th-TH', { 
-      day: 'numeric', 
-      month: 'short' 
-     })}</span>
-    </Badge>
    </div>
   </div>
  </div>
@@ -313,36 +323,36 @@ const StatsOverview = ({ stats }: { stats: ReportSummary }) => {
  ]
 
  return (
-  <section aria-labelledby="stats-heading" className="mb-6 sm:mb-8">
+  <section aria-labelledby="stats-heading" className="mb-8 sm:mb-10">
    <h2 id="stats-heading" className="sr-only">สถิติภาพรวมระบบ</h2>
-   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6">
     {statCards.map((card, index) => {
      const IconComponent = card.icon
      const TrendIcon = card.trendUp ? ArrowUpRight : ArrowDownRight
      return (
-      <Card 
-       key={index} 
-       className={`relative overflow-hidden border-0 bg-gradient-to-br ${card.gradient} hover:shadow-lg transition-all duration-300 group`}
+      <Card
+       key={index}
+       className={`relative overflow-hidden border-0 bg-gradient-to-br ${card.gradient} hover:shadow-xl transition-all duration-300 group hover:-translate-y-1`}
       >
-       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
+       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <CardTitle className="text-sm sm:text-base font-medium text-muted-foreground">
          {card.title}
         </CardTitle>
-        <div className={`p-2 sm:p-2.5 ${card.iconBg} rounded-xl shadow-lg flex-shrink-0 group-hover:scale-110 transition-transform duration-300`}>
-         <IconComponent className={`h-4 w-4 sm:h-5 sm:w-5 ${card.iconColor}`} />
+        <div className={`p-2.5 sm:p-3 ${card.iconBg} rounded-xl shadow-lg flex-shrink-0 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300`}>
+         <IconComponent className={`h-5 w-5 sm:h-6 sm:w-6 ${card.iconColor}`} />
         </div>
        </CardHeader>
-       <CardContent className="space-y-1">
-        <div className="text-2xl sm:text-3xl font-bold tracking-tight">
+       <CardContent className="space-y-2">
+        <div className="text-3xl sm:text-4xl font-bold tracking-tight">
          {card.value}
         </div>
-        <div className="flex items-center justify-between">
-         <p className="text-xs text-muted-foreground truncate">
+        <div className="flex items-center justify-between gap-2">
+         <p className="text-xs sm:text-sm text-muted-foreground truncate flex-1">
           {card.subtitle}
          </p>
-         <Badge 
-          variant={card.trendUp ? "default" : "secondary"} 
-          className="gap-1 text-[10px] sm:text-xs"
+         <Badge
+          variant={card.trendUp ? "default" : "secondary"}
+          className="gap-1 text-xs font-semibold flex-shrink-0"
          >
           <TrendIcon className="h-3 w-3" />
           {card.trend}
@@ -359,65 +369,63 @@ const StatsOverview = ({ stats }: { stats: ReportSummary }) => {
 
 const QuickActionsSection = ({ quickActions }: { quickActions: ReturnType<typeof createQuickActions> }) => (
  <div className="lg:col-span-2">
-  <div className="flex items-center justify-between mb-4 sm:mb-6">
-   <div>
-    <h3 className="text-base sm:text-lg lg:text-xl font-semibold tracking-tight">
+  <div className="flex items-center justify-between gap-2 sm:gap-3 mb-4 sm:mb-5 md:mb-6">
+   <div className="min-w-0 flex-1">
+    <h3 className="text-base sm:text-lg md:text-xl font-bold tracking-tight truncate">
      เมนูการจัดการ
     </h3>
-    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 truncate hidden sm:block">
      เลือกระบบที่ต้องการจัดการ
     </p>
    </div>
-   <Button variant="ghost" size="sm" className="gap-1.5 sm:gap-2 h-8 sm:h-9 text-xs sm:text-sm">
-    <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
-    <span className="hidden xs:inline">ดูทั้งหมด</span>
+   <Button variant="ghost" size="sm" className="gap-1.5 sm:gap-2 flex-shrink-0 h-8 sm:h-9">
+    <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+    <span className="text-xs sm:text-sm">ดูทั้งหมด</span>
    </Button>
   </div>
-  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
    {quickActions.map((action) => {
     const IconComponent = action.icon
     return (
      <Link key={action.href} href={action.href}>
-      <Card 
-       className="relative overflow-hidden border hover:border-primary/50 hover:shadow-xl transition-all duration-300 cursor-pointer group bg-card/50 backdrop-blur-sm" 
-       role="article" 
+      <Card
+       className="relative overflow-hidden border hover:border-primary/50 hover:shadow-xl transition-all duration-300 cursor-pointer group bg-card/50 backdrop-blur-sm hover:-translate-y-1"
+       role="article"
        aria-labelledby={`action-title-${action.href.split('/').pop()}`}
       >
        {/* Gradient Background on Hover */}
        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-       
-       <CardHeader className="relative pb-3 sm:pb-4">
-        <div className="flex items-start justify-between gap-3">
-         <div className="flex items-start gap-3 min-w-0 flex-1">
-          <div className={`p-2.5 sm:p-3 rounded-xl ${action.bgColor} group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 flex-shrink-0 shadow-md`}>
-           <IconComponent className={`h-5 w-5 sm:h-6 sm:w-6 ${action.color}`} />
-          </div>
-          <div className="min-w-0 flex-1">
-           <CardTitle 
-            id={`action-title-${action.href.split('/').pop()}`} 
-            className="text-sm sm:text-base lg:text-lg group-hover:text-primary transition-colors line-clamp-1"
-           >
-            {action.title}
-           </CardTitle>
-           <CardDescription className="text-xs sm:text-sm mt-1 line-clamp-2">
-            {action.description}
-           </CardDescription>
-          </div>
+
+       <CardHeader className="relative pb-4">
+        <div className="flex items-start gap-4">
+         <div className={`p-3 rounded-xl ${action.bgColor} group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 flex-shrink-0 shadow-md`}>
+          <IconComponent className={`h-6 w-6 ${action.color}`} />
+         </div>
+         <div className="min-w-0 flex-1">
+          <CardTitle
+           id={`action-title-${action.href.split('/').pop()}`}
+           className="text-base sm:text-lg group-hover:text-primary transition-colors mb-1"
+          >
+           {action.title}
+          </CardTitle>
+          <CardDescription className="text-sm line-clamp-2">
+           {action.description}
+          </CardDescription>
          </div>
         </div>
        </CardHeader>
-       
-       <CardContent className="relative pt-0 space-y-3">
+
+       <CardContent className="relative pt-0">
         <div className="flex items-center justify-between">
          <div className="space-y-1">
-          <Badge variant="secondary" className="text-xs font-semibold">
+          <Badge variant="secondary" className="text-sm font-semibold">
            {action.stats}
           </Badge>
-          <p className="text-[10px] sm:text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
            {action.trend}
           </p>
          </div>
-         <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-2 transition-all duration-300" />
+         <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-2 transition-all duration-300 flex-shrink-0" />
         </div>
        </CardContent>
       </Card>
@@ -429,19 +437,19 @@ const QuickActionsSection = ({ quickActions }: { quickActions: ReturnType<typeof
 )
 
 const ActivityPanel = ({ recentActivity, stats }: { recentActivity: ActivityItem[]; stats: ReportSummary }) => (
- <aside aria-labelledby="activity-heading" className="space-y-4 sm:space-y-6">
-  <div className="flex items-center justify-between">
-   <div>
-    <h3 id="activity-heading" className="text-base sm:text-lg lg:text-xl font-semibold tracking-tight">
+ <aside aria-labelledby="activity-heading" className="space-y-4 sm:space-y-5 md:space-y-6">
+  <div className="flex items-center justify-between gap-2 sm:gap-3">
+   <div className="min-w-0 flex-1">
+    <h3 id="activity-heading" className="text-base sm:text-lg md:text-xl font-bold tracking-tight truncate">
      สถานะปัจจุบัน
     </h3>
-    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-     อัปเดตแบบเรียลไทม์
+    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 truncate hidden sm:block">
+     ข้อมูล ณ วันที่โหลด
     </p>
    </div>
-   <Badge variant="outline" className="gap-1.5 text-xs sm:text-sm animate-pulse">
-    <div className="h-2 w-2 rounded-full bg-green-500" />
-    Live
+   <Badge variant="outline" className="gap-1 sm:gap-1.5 text-xs sm:text-sm flex-shrink-0 px-2 sm:px-3 h-7 sm:h-8">
+    <Activity className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+    <span className="hidden sm:inline">Dashboard</span>
    </Badge>
   </div>
   
@@ -554,10 +562,28 @@ const ActivityPanel = ({ recentActivity, stats }: { recentActivity: ActivityItem
 )
 
 function AdminDashboard() {
- const { stats, loading, error, refresh } = useAdminStats()
- 
+ const { user, isAdmin } = useAuth()
+ const isAuthenticated = !!(user && isAdmin)
+ const { stats, loading, error, refresh } = useAdminStats(isAuthenticated)
+
+ // useMemo hooks must be called before any early returns
  const quickActions = useMemo(() => createQuickActions(stats), [stats])
  const recentActivity = useMemo(() => createRecentActivity(stats), [stats])
+
+ // Check if user is authenticated and has admin role
+ if (!isAuthenticated) {
+   return (
+     <AdminLayout>
+       <div className="flex flex-col items-center justify-center min-h-[400px]">
+         <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+         <h2 className="text-xl font-semibold mb-2">ไม่มีสิทธิ์เข้าถึง</h2>
+         <p className="text-gray-600 text-center">
+           คุณต้องเป็นผู้ดูแลระบบจึงจะเข้าถึงหน้านี้ได้
+         </p>
+       </div>
+     </AdminLayout>
+   )
+ }
 
  if (loading && !stats) {
   return (
@@ -587,7 +613,7 @@ function AdminDashboard() {
   <AdminLayout data-testid="admin-dashboard">
    <WelcomeSection onRefresh={refresh} isLoading={loading} />
    <StatsOverview stats={stats} />
-   <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+   <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 sm:gap-8">
     <QuickActionsSection quickActions={quickActions} />
     <ActivityPanel recentActivity={recentActivity} stats={stats} />
    </div>

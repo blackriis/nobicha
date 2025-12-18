@@ -92,11 +92,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
      // When signed in or token refreshed, ensure we get user data
      if (session?.user) {
       try {
-       const { user: authenticatedUser } = await auth.getUser()
+       // Add a timeout wrapper to prevent hanging
+       const userPromise = auth.getUser()
+       const timeoutPromise = new Promise((_, reject) =>
+         setTimeout(() => reject(new Error('getUser timeout')), 5000)
+       )
+
+       const { user: authenticatedUser } = await Promise.race([userPromise, timeoutPromise]) as any
        setUser(authenticatedUser as AuthUser || null)
       } catch (error) {
+       // Handle timeout specifically
+       if (error.message === 'getUser timeout') {
+        console.warn('getUser timed out during auth state change - keeping existing user state')
+        // Don't clear user on timeout - this prevents logout during navigation
+        return
+       }
+
        // Handle invalid refresh token errors
-       if (error.message?.includes('Invalid Refresh Token') || 
+       if (error.message?.includes('Invalid Refresh Token') ||
            error.message?.includes('Refresh Token Not Found') ||
            error.message?.includes('refresh_token_not_found')) {
         console.warn('Invalid refresh token during state change - forcing logout')

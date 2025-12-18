@@ -1,6 +1,7 @@
 import { createBrowserClient } from '@supabase/ssr'
 import { config } from '@employee-management/config'
 import type { Database } from '@employee-management/database'
+import { getSupabaseClient } from './supabase-client'
 
 // Client-side Supabase client with enhanced error handling
 export const createClientComponentClient = () => {
@@ -85,8 +86,8 @@ export const createSupabaseServerClient = () => {
   )
 }
 
-// Default browser client for backward compatibility
-export const supabase = createClientComponentClient()
+// Default browser client using singleton
+export const supabase = getSupabaseClient()
 
 // Client-side browser client for use in components
 export const createSupabaseClientSide = createClientComponentClient

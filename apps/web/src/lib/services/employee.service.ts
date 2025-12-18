@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseClient } from '@/lib/supabase-client'
 import { isValidUUID } from '@/lib/validation'
 // Define UserRole locally since we can't import from @packages/database
 type UserRole = 'admin' | 'employee'
@@ -166,18 +166,11 @@ export class EmployeeValidation {
 }
 
 export class EmployeeService {
-  // Use ANON client for client-side operations, API routes will handle service role
-  private supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  // Use singleton client to avoid multiple instances
+  private supabase = getSupabaseClient()
 
   constructor() {
-    console.log('EmployeeService initialized with:', {
-      hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-      hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-      urlStart: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30)
-    })
+    // Constructor no longer creates new client
   }
 
   async getEmployeeList(
