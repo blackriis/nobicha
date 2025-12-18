@@ -7,12 +7,11 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
-import { 
+import {
  Sheet,
  SheetContent,
  SheetHeader,
  SheetTitle,
- SheetTrigger,
 } from '@/components/ui/sheet'
 import {
  Tooltip,
@@ -21,10 +20,9 @@ import {
 } from '@/components/ui/tooltip'
 import { useAuth, LogoutButton } from '@/components/auth'
 import { useAdminStats } from '@/hooks/useAdminStats'
-import { 
+import {
  Settings,
  Bell,
- Menu,
  ChevronLeft,
  User,
  LogOut,
@@ -349,9 +347,14 @@ const SidebarContent = ({
 )
 
 // Main Component
-export function AdminSidebar({ className }: { className?: string }) {
+interface AdminSidebarProps {
+ className?: string
+ mobileOpen?: boolean
+ onMobileOpenChange?: (open: boolean) => void
+}
+
+export function AdminSidebar({ className, mobileOpen = false, onMobileOpenChange }: AdminSidebarProps) {
  const [collapsed, setCollapsed] = useState(false)
- const [mobileOpen, setMobileOpen] = useState(false)
  const { user } = useAuth()
  const pathname = usePathname()
  const { branchesCount, employeesCount, materialsCount, payrollCyclesCount, notificationsCount, loading } = useAdminStats()
@@ -360,10 +363,10 @@ export function AdminSidebar({ className }: { className?: string }) {
   {
    title: 'ภาพรวม',
    items: [
-    { 
-     label: 'แดชบอร์ด', 
-     href: '/admin', 
-     icon: Home, 
+    {
+     label: 'แดชบอร์ด',
+     href: '/admin',
+     icon: Home,
      description: 'ภาพรวมระบบ',
      badge: null
     },
@@ -372,31 +375,31 @@ export function AdminSidebar({ className }: { className?: string }) {
   {
    title: 'การจัดการระบบ',
    items: [
-    { 
-     label: 'จัดการสาขา', 
-     href: '/admin/branches', 
-     icon: Building2, 
+    {
+     label: 'จัดการสาขา',
+     href: '/admin/branches',
+     icon: Building2,
      description: 'สาขาและสถานที่',
      badge: loading ? '...' : (branchesCount > 0 ? branchesCount.toString() : null)
     },
-    { 
-     label: 'จัดการพนักงาน', 
-     href: '/admin/employees', 
-     icon: Users, 
+    {
+     label: 'จัดการพนักงาน',
+     href: '/admin/employees',
+     icon: Users,
      description: 'ข้อมูลพนักงาน',
      badge: loading ? '...' : (employeesCount > 0 ? employeesCount.toString() : null)
     },
-    { 
-     label: 'จัดการวัตถุดิบ', 
-     href: '/admin/raw-materials', 
-     icon: Package, 
+    {
+     label: 'จัดการวัตถุดิบ',
+     href: '/admin/raw-materials',
+     icon: Package,
      description: 'คลังวัตถุดิบ',
      badge: loading ? '...' : (materialsCount > 0 ? materialsCount.toString() : null)
     },
-    { 
-     label: 'จัดการเงินเดือน', 
-     href: '/admin/payroll', 
-     icon: Banknote, 
+    {
+     label: 'จัดการเงินเดือน',
+     href: '/admin/payroll',
+     icon: Banknote,
      description: 'เงินเดือนและโบนัส',
      badge: loading ? '...' : (payrollCyclesCount > 0 ? payrollCyclesCount.toString() : null)
     },
@@ -406,11 +409,11 @@ export function AdminSidebar({ className }: { className?: string }) {
 
  return (
   <>
-   {/* Desktop Sidebar */}
+   {/* Desktop Sidebar - Always visible on large screens */}
    <aside className={`hidden lg:flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 ${
     collapsed ? 'w-16' : 'w-64'
    } ${className}`}>
-    <SidebarContent 
+    <SidebarContent
      showHeader={true}
      collapsed={collapsed}
      onToggle={() => setCollapsed(!collapsed)}
@@ -423,50 +426,32 @@ export function AdminSidebar({ className }: { className?: string }) {
     />
    </aside>
 
-   {/* Mobile Sidebar */}
-   <div className="lg:hidden">
-    <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-     <Tooltip>
-      <TooltipTrigger asChild>
-       <SheetTrigger asChild>
-        <Button
-         variant="ghost"
-         size="sm"
-         className="fixed top-4 left-4 z-50 lg:hidden"
-        >
-         <Menu className="h-4 w-4" />
-        </Button>
-       </SheetTrigger>
-      </TooltipTrigger>
-      <TooltipContent>
-       <p>เปิดเมนู</p>
-      </TooltipContent>
-     </Tooltip>
-     <SheetContent 
-      side="left" 
-      className="w-64 bg-sidebar text-sidebar-foreground border-sidebar-border p-0"
-     >
-      <SheetHeader className="p-4 border-b border-sidebar-border">
-       <div className="flex items-center justify-between">
-        <SheetTitle className="font-semibold">Admin Panel</SheetTitle>
-        <ThemeToggle />
-       </div>
-      </SheetHeader>
-      <div className="flex-1 overflow-y-auto">
-       <SidebarContent 
-        showHeader={false}
-        collapsed={false}
-        navigationGroups={navigationGroups}
-        adminActions={ADMIN_ACTIONS}
-        notificationsCount={notificationsCount}
-        loading={loading}
-        pathname={pathname}
-        user={user}
-       />
+   {/* Mobile Sidebar Sheet */}
+   <Sheet open={mobileOpen} onOpenChange={onMobileOpenChange}>
+    <SheetContent
+     side="left"
+     className="w-64 bg-sidebar text-sidebar-foreground border-sidebar-border p-0"
+    >
+     <SheetHeader className="p-4 border-b border-sidebar-border">
+      <div className="flex items-center justify-between">
+       <SheetTitle className="font-semibold">Admin Panel</SheetTitle>
+       <ThemeToggle />
       </div>
-     </SheetContent>
-    </Sheet>
-   </div>
+     </SheetHeader>
+     <div className="flex-1 overflow-y-auto h-[calc(100vh-5rem)]">
+      <SidebarContent
+       showHeader={false}
+       collapsed={false}
+       navigationGroups={navigationGroups}
+       adminActions={ADMIN_ACTIONS}
+       notificationsCount={notificationsCount}
+       loading={loading}
+       pathname={pathname}
+       user={user}
+      />
+     </div>
+    </SheetContent>
+   </Sheet>
   </>
  )
 }
