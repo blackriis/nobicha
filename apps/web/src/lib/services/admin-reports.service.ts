@@ -170,6 +170,22 @@ class AdminReportsService {
     return createClientComponentClient()
   }
 
+  // Get auth headers with current session
+  private async getAuthHeaders(): Promise<HeadersInit> {
+    const client = this.getClient()
+    const { data: { session } } = await client.auth.getSession()
+
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json'
+    }
+
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`
+    }
+
+    return headers
+  }
+
   // Calculate date range filter for API calls
   private formatDateRange(dateRange: DateRangeFilter): string {
     const params = new URLSearchParams()
@@ -230,19 +246,30 @@ class AdminReportsService {
         queryParams.append('branchId', branchId)
       }
       const url = `/api/admin/reports/summary?${queryParams.toString()}`
-      
+
+      const headers = await this.getAuthHeaders()
+
       const response = await fetch(url, {
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers
       })
       
       if (!response.ok) {
+        // Don't log 401 as error since it's expected when not authenticated
+        if (response.status !== 401) {
+          console.error('Admin reports API error:', {
+            status: response.status,
+            statusText: response.statusText,
+            url
+          })
+        }
+
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         return {
           data: null,
-          error: errorData.error || 'ไม่สามารถดึงข้อมูลสรุปรายงานได้',
+          error: response.status === 401
+            ? 'กรุณาเข้าสู่ระบบก่อนใช้งาน'
+            : errorData.error || 'ไม่สามารถดึงข้อมูลสรุปรายงานได้',
           success: false
         }
       }
@@ -275,18 +302,28 @@ class AdminReportsService {
         queryParams.append('branchId', branchId)
       }
       queryParams.append('limit', limit.toString())
+      const headers = await this.getAuthHeaders()
       const response = await fetch(`/api/admin/reports/employees?${queryParams.toString()}`, {
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers
       })
       
       if (!response.ok) {
-        const errorData = await response.json()
+        // Don't log 401 as error since it's expected when not authenticated
+        if (response.status !== 401) {
+          console.error('Admin reports API error:', {
+            status: response.status,
+            statusText: response.statusText,
+            url
+          })
+        }
+
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         return {
           data: null,
-          error: errorData.error || 'ไม่สามารถดึงข้อมูลรายงานพนักงานได้',
+          error: response.status === 401
+            ? 'กรุณาเข้าสู่ระบบก่อนใช้งาน'
+            : errorData.error || 'ไม่สามารถดึงข้อมูลรายงานพนักงานได้',
           success: false
         }
       }
@@ -318,18 +355,28 @@ class AdminReportsService {
       if (branchId) {
         queryParams.append('branchId', branchId)
       }
+      const headers = await this.getAuthHeaders()
       const response = await fetch(`/api/admin/reports/branches?${queryParams.toString()}`, {
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers
       })
       
       if (!response.ok) {
-        const errorData = await response.json()
+        // Don't log 401 as error since it's expected when not authenticated
+        if (response.status !== 401) {
+          console.error('Admin reports API error:', {
+            status: response.status,
+            statusText: response.statusText,
+            url
+          })
+        }
+
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         return {
           data: null,
-          error: errorData.error || 'ไม่สามารถดึงข้อมูลรายงานสาขาได้',
+          error: response.status === 401
+            ? 'กรุณาเข้าสู่ระบบก่อนใช้งาน'
+            : errorData.error || 'ไม่สามารถดึงข้อมูลรายงานสาขาได้',
           success: false
         }
       }
@@ -358,18 +405,28 @@ class AdminReportsService {
         queryParams.append('branchId', branchId)
       }
       queryParams.append('limit', limit.toString())
+      const headers = await this.getAuthHeaders()
       const response = await fetch(`/api/admin/reports/sales?${queryParams.toString()}`, {
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers
       })
       
       if (!response.ok) {
-        const errorData = await response.json()
+        // Don't log 401 as error since it's expected when not authenticated
+        if (response.status !== 401) {
+          console.error('Admin reports API error:', {
+            status: response.status,
+            statusText: response.statusText,
+            url
+          })
+        }
+
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         return {
           data: null,
-          error: errorData.error || 'ไม่สามารถดึงข้อมูลรายงานการขายได้',
+          error: response.status === 401
+            ? 'กรุณาเข้าสู่ระบบก่อนใช้งาน'
+            : errorData.error || 'ไม่สามารถดึงข้อมูลรายงานการขายได้',
           success: false
         }
       }
@@ -405,29 +462,33 @@ class AdminReportsService {
 
       const url = `/api/admin/reports/materials?${queryParams.toString()}`
 
-      console.log('🌐 Making materials API request:', { url, dateRange, branchId, limit })
-
+      const headers = await this.getAuthHeaders()
       const response = await fetch(url, {
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers
       })
 
-      console.log('🔍 Response status:', response.status, response.statusText)
-
       if (!response.ok) {
+        // Don't log 401 as error since it's expected when not authenticated
+        if (response.status !== 401) {
+          console.error('Admin reports API error:', {
+            status: response.status,
+            statusText: response.statusText,
+            url
+          })
+        }
+
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        console.log('❌ API Error:', errorData)
         return {
           data: null,
-          error: errorData.error || 'ไม่สามารถดึงข้อมูลรายงานวัตถุดิบได้',
+          error: response.status === 401
+            ? 'กรุณาเข้าสู่ระบบก่อนใช้งาน'
+            : errorData.error || 'ไม่สามารถดึงข้อมูลรายงานวัตถุดิบได้',
           success: false
         }
       }
 
       const result = await response.json()
-      console.log('✅ API Success:', { hasData: !!result.data, dataKeys: result.data ? Object.keys(result.data) : [] })
       return {
         data: result.data,
         error: null,
@@ -457,29 +518,33 @@ class AdminReportsService {
 
       const url = `/api/admin/reports/materials/trend?${queryParams.toString()}`
 
-      console.log('🌐 Making materials trend API request:', { url, months, branchId })
-
+      const headers = await this.getAuthHeaders()
       const response = await fetch(url, {
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers
       })
 
-      console.log('🔍 Trend response status:', response.status, response.statusText)
-
       if (!response.ok) {
+        // Don't log 401 as error since it's expected when not authenticated
+        if (response.status !== 401) {
+          console.error('Admin reports API error:', {
+            status: response.status,
+            statusText: response.statusText,
+            url
+          })
+        }
+
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
-        console.log('❌ Trend API Error:', errorData)
         return {
           data: null,
-          error: errorData.error || 'ไม่สามารถดึงข้อมูลแนวโน้มรายเดือนได้',
+          error: response.status === 401
+            ? 'กรุณาเข้าสู่ระบบก่อนใช้งาน'
+            : errorData.error || 'ไม่สามารถดึงข้อมูลแนวโน้มรายเดือนได้',
           success: false
         }
       }
 
       const result = await response.json()
-      console.log('✅ Trend API Success:', { hasData: !!result.data, dataLength: result.data?.length })
       return {
         data: result.data,
         error: null,

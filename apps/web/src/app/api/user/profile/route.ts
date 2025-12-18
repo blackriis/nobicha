@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase-server'
+import { createClient } from '@/lib/supabase-server'
 import { config } from '@employee-management/config'
 
 const BASE_USER_SELECT = `
@@ -17,26 +17,10 @@ const BASE_USER_SELECT = `
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createSupabaseServerClient()
+    const supabase = await createClient()
 
-    // Get authorization header
-    const authHeader = request.headers.get('authorization')
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.warn('Profile API: No authorization header')
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Unauthorized - Please login first',
-          code: 'AUTH_REQUIRED'
-        },
-        { status: 401 }
-      )
-    }
-
-    const token = authHeader.replace('Bearer ', '')
-
-    // Get authenticated user first
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    // Get user from session using cookies
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
       console.warn('Profile API: Authentication failed', {

@@ -1,5 +1,5 @@
 import type { Database } from '@employee-management/database'
-import { createClient } from '@supabase/supabase-js'
+import { getSupabaseClient } from '@/lib/supabase-client'
 import { validateGPSCoordinates } from '../utils/gps.utils'
 import type { GPSValidationResult } from '../utils/gps.utils'
 
@@ -28,12 +28,9 @@ export interface BranchServiceResult<T = unknown> {
 }
 
 class BranchService {
-  // Use Supabase client with SERVICE_ROLE fallback for admin operations
+  // Use singleton client
   private getClient() {
-    return createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
+    return getSupabaseClient()
   }
 
   // Get all branches

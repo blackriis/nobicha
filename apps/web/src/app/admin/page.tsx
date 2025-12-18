@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useAuth } from '@/components/auth'
 import { AdminLayout } from '@/components/admin/AdminLayout' 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -94,19 +95,23 @@ const QUICK_ACTIONS_CONFIG: QuickActionConfig[] = [
 ]
 
 // Custom Hooks
-function useAdminStats() {
+function useAdminStats(isAuthenticated: boolean) {
  const [stats, setStats] = useState<ReportSummary | null>(null)
- const [loading, setLoading] = useState(true)
+ const [loading, setLoading] = useState(false)
  const [error, setError] = useState<string | null>(null)
  const [refreshTrigger, setRefreshTrigger] = useState(0)
 
  const fetchStats = useCallback(async () => {
+  if (!isAuthenticated) {
+   return
+  }
+
   try {
    setLoading(true)
    setError(null)
-   
+
    const result = await adminReportsService.getSummaryReport({ type: 'today' })
-   
+
    if (result.success && result.data) {
     setStats(result.data)
    } else {
@@ -118,26 +123,29 @@ function useAdminStats() {
   } finally {
    setLoading(false)
   }
- }, [])
+ }, [isAuthenticated])
 
  useEffect(() => {
   let isMounted = true
-  
-  // Fetch immediately
-  fetchStats()
-  
-  // Auto-refresh every 30 seconds
-  const interval = setInterval(() => {
-   if (isMounted) {
-    fetchStats()
+
+  // Only fetch if authenticated
+  if (isAuthenticated) {
+   // Fetch immediately
+   fetchStats()
+
+   // Auto-refresh every 30 seconds
+   const interval = setInterval(() => {
+    if (isMounted) {
+     fetchStats()
+    }
+   }, 30000)
+
+   return () => {
+    isMounted = false
+    clearInterval(interval)
    }
-  }, 30000)
-  
-  return () => {
-   isMounted = false
-   clearInterval(interval)
   }
- }, [fetchStats, refreshTrigger])
+ }, [fetchStats, refreshTrigger, isAuthenticated])
 
  const refresh = useCallback(() => {
   setRefreshTrigger(prev => prev + 1)
@@ -554,7 +562,24 @@ const ActivityPanel = ({ recentActivity, stats }: { recentActivity: ActivityItem
 )
 
 function AdminDashboard() {
- const { stats, loading, error, refresh } = useAdminStats()
+ const { user, session, isAdmin } = useAuth()
+ const isAuthenticated = !!(user && isAdmin)
+ const { stats, loading, error, refresh } = useAdminStats(isAuthenticated)
+
+ // Check if user is authenticated and has admin role
+ if (!isAuthenticated) {
+   return (
+     <AdminLayout>
+       <div className="flex flex-col items-center justify-center min-h-[400px]">
+         <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+         <h2 className="text-xl font-semibold mb-2">ไม่มีสิทธิ์เข้าถึง</h2>
+         <p className="text-gray-600 text-center">
+           คุณต้องเป็นผู้ดูแลระบบจึงจะเข้าถึงหน้านี้ได้
+         </p>
+       </div>
+     </AdminLayout>
+   )
+ }
  
  const quickActions = useMemo(() => createQuickActions(stats), [stats])
  const recentActivity = useMemo(() => createRecentActivity(stats), [stats])
