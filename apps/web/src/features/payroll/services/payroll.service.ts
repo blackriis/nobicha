@@ -700,8 +700,23 @@ export class PayrollService {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'เกิดข้อผิดพลาดในการดึงข้อมูลสรุปรอบการจ่ายเงินเดือน');
+        let errorMessage = 'เกิดข้อผิดพลาดในการดึงข้อมูลสรุปรอบการจ่ายเงินเดือน';
+
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (parseError) {
+          // Handle cases where response body is not JSON
+          if (response.status === 404) {
+            errorMessage = 'ไม่พบรอบการจ่ายเงินเดือนที่ระบุ';
+          } else if (response.status === 401) {
+            errorMessage = 'ไม่ได้รับอนุญาตให้เข้าถึงข้อมูลนี้ กรุณาเข้าสู่ระบบใหม่';
+          } else if (response.status === 403) {
+            errorMessage = 'ไม่มีสิทธิ์เข้าถึงข้อมูลนี้';
+          }
+        }
+
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();

@@ -246,26 +246,48 @@ export function PayrollCycleManager({ onNavigate, onError, refreshTrigger }: Pay
          
          {cycle.status === 'active' && (
           <>
-           <DropdownMenuItem 
+           <DropdownMenuItem
             onClick={() => onNavigate('calculation', cycle)}
             className="cursor-pointer"
            >
             <Calculator className="h-4 w-4 mr-2" />
             คำนวณเงินเดือน
            </DropdownMenuItem>
-           <DropdownMenuItem 
-            onClick={() => onNavigate('bonus-deduction', cycle)}
+           <DropdownMenuItem
+            onClick={() => {
+              // Check if payroll has been calculated
+              if (!(cycle as any).has_payroll_details) {
+                onError('กรุณาคำนวณเงินเดือนก่อนจัดการโบนัส/หักเงิน')
+                return
+              }
+              onNavigate('bonus-deduction', cycle)
+            }}
             className="cursor-pointer"
+            disabled={!(cycle as any).has_payroll_details}
            >
             <DollarSign className="h-4 w-4 mr-2" />
-            จัดการโบนัส/หักเงิน
+            <span className="flex-1">จัดการโบนัส/หักเงิน</span>
+            {!(cycle as any).has_payroll_details && (
+              <span className="text-xs text-muted-foreground">(คำนวณก่อน)</span>
+            )}
            </DropdownMenuItem>
-           <DropdownMenuItem 
-            onClick={() => onNavigate('summary', cycle)}
+           <DropdownMenuItem
+            onClick={() => {
+              // Check if payroll has been calculated
+              if (!(cycle as any).has_payroll_details) {
+                onError('กรุณาคำนวณเงินเดือนก่อนดูสรุป')
+                return
+              }
+              onNavigate('summary', cycle)
+            }}
             className="cursor-pointer"
+            disabled={!(cycle as any).has_payroll_details}
            >
             <FileText className="h-4 w-4 mr-2" />
-            สรุปก่อนปิดรอบ
+            <span className="flex-1">สรุปก่อนปิดรอบ</span>
+            {!(cycle as any).has_payroll_details && (
+              <span className="text-xs text-muted-foreground">(คำนวณก่อน)</span>
+            )}
            </DropdownMenuItem>
            <DropdownMenuSeparator />
            <AlertDialog>

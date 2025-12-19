@@ -26,8 +26,15 @@ export async function POST(
       )
     }
 
-    // Admin check
-    const { data: userProfile, error: profileError } = await supabase
+    // Create service client for reliable data access (bypasses RLS)
+    const { createClient: createSimpleClient } = await import('@supabase/supabase-js');
+    const serviceSupabase = createSimpleClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    // Admin check - use service client to bypass RLS
+    const { data: userProfile, error: profileError } = await serviceSupabase
       .from('users')
       .select('role')
       .eq('id', user.id)
@@ -40,14 +47,15 @@ export async function POST(
       )
     }
 
-    // Get payroll cycle
-    const { data: cycle, error: cycleError } = await supabase
+    // Get payroll cycle using service role client
+    const { data: cycle, error: cycleError } = await serviceSupabase
       .from('payroll_cycles')
       .select('*')
       .eq('id', cycleId)
       .single()
 
     if (cycleError || !cycle) {
+      console.error('Payroll cycle not found for finalize:', { cycleId, error: cycleError });
       return NextResponse.json(
         { error: 'ไม่พบรอบการจ่ายเงินเดือนที่ระบุ' },
         { status: 404 }
@@ -69,13 +77,6 @@ export async function POST(
         { status: 400 }
       )
     }
-
-    // Create service client for reliable data access
-    const { createClient: createSimpleClient } = await import('@supabase/supabase-js');
-    const serviceSupabase = createSimpleClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
 
     // Get all payroll details for validation
     const { data: payrollDetails, error: detailsError } = await serviceSupabase

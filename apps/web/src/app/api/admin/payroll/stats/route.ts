@@ -9,7 +9,7 @@ interface PayrollDetail {
 
 interface PayrollCycle {
   id: string
-  end_date: string
+  finalized_at: string | null
   payroll_details: PayrollDetail[] | null
 }
 
@@ -17,7 +17,7 @@ interface PayrollCycle {
 export async function GET(request: NextRequest) {
   try {
     // Rate limiting
-    const rateLimitResult = await authRateLimiter.checkLimit(request)
+    const rateLimitResult = authRateLimiter.checkLimit(request)
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
         { error: 'คำขอมากเกินไป กรุณาลองใหม่อีกครั้งในภายหลัง' },
@@ -72,17 +72,19 @@ export async function GET(request: NextRequest) {
         .eq('is_active', true),
 
       // Monthly payroll calculation (current month completed cycles)
+      // Use finalized_at instead of end_date for accurate monthly reporting
       supabase
         .from('payroll_cycles')
         .select(`
           id,
+          finalized_at,
           payroll_details(
             net_pay
           )
         `)
         .eq('status', 'completed')
-        .gte('end_date', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0])
-        .lt('end_date', new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString().split('T')[0]),
+        .gte('finalized_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())
+        .lt('finalized_at', new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString()),
 
       // Pending approvals (active cycles that have payroll details calculated but not finalized)
       supabase
@@ -94,18 +96,20 @@ export async function GET(request: NextRequest) {
         .eq('status', 'active'),
 
       // Recent payroll trend (last 3 months for comparison)
+      // Use finalized_at with proper date handling including year
       supabase
         .from('payroll_cycles')
         .select(`
           id,
-          end_date,
+          finalized_at,
           payroll_details(
             net_pay
           )
         `)
         .eq('status', 'completed')
-        .gte('end_date', new Date(new Date().getFullYear(), new Date().getMonth() - 2, 1).toISOString().split('T')[0])
-        .order('end_date', { ascending: false })
+        .not('finalized_at', 'is', null)
+        .gte('finalized_at', new Date(new Date().getFullYear(), new Date().getMonth() - 2, 1).toISOString())
+        .order('finalized_at', { ascending: false })
     ])
 
     // Handle database errors
@@ -158,7 +162,7 @@ export async function GET(request: NextRequest) {
     // Calculate monthly payroll total
     let monthlyPayroll = 0
     if (monthlyPayrollResult.data) {
-      for (const cycle of monthlyPayrollResult.data as PayrollCycle[]) {
+      for (const cycle of monthlyPayrollResult.data as unknown as PayrollCycle[]) {
         if (cycle.payroll_details && Array.isArray(cycle.payroll_details)) {
           monthlyPayroll += cycle.payroll_details.reduce((sum: number, detail: PayrollDetail) => {
             return sum + (detail.net_pay || 0)
@@ -168,19 +172,30 @@ export async function GET(request: NextRequest) {
     }
 
     // Calculate growth percentage (compare with previous month)
+    // Fixed: Use both year and month for accurate comparison
     let growthPercentage = 0
     if (recentPayrollResult.data && recentPayrollResult.data.length > 0) {
-      const currentMonth = new Date().getMonth()
-      const recentData = recentPayrollResult.data as PayrollCycle[]
-      
+      const now = new Date()
+      const currentYear = now.getFullYear()
+      const currentMonth = now.getMonth()
+      const recentData = recentPayrollResult.data as unknown as PayrollCycle[]
+
+      // Current month data (same year and month)
       const currentMonthData = recentData.filter((cycle) => {
-        const cycleMonth = new Date(cycle.end_date).getMonth()
-        return cycleMonth === currentMonth
+        if (!cycle.finalized_at) return false
+        const finalizedDate = new Date(cycle.finalized_at)
+        return finalizedDate.getFullYear() === currentYear &&
+               finalizedDate.getMonth() === currentMonth
       })
-      
+
+      // Previous month data (handle year boundary)
       const previousMonthData = recentData.filter((cycle) => {
-        const cycleMonth = new Date(cycle.end_date).getMonth()
-        return cycleMonth === (currentMonth - 1 + 12) % 12
+        if (!cycle.finalized_at) return false
+        const finalizedDate = new Date(cycle.finalized_at)
+        const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1
+        const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear
+        return finalizedDate.getFullYear() === prevYear &&
+               finalizedDate.getMonth() === prevMonth
       })
 
       if (currentMonthData.length > 0 && previousMonthData.length > 0) {

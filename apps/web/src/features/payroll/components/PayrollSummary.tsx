@@ -33,22 +33,46 @@ export function PayrollSummary({ cycle, onNavigate, onError, onSuccess }: Payrol
  const [finalizing, setFinalizing] = useState(false)
 
  useEffect(() => {
+  // Validate cycle before loading
+  if (!cycle?.id) {
+   onError('ข้อมูลรอบการจ่ายเงินเดือนไม่ถูกต้อง')
+   setLoading(false)
+   return
+  }
   loadSummary()
- }, [cycle.id])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [cycle?.id]) // Only re-run when cycle.id changes
 
  const loadSummary = async () => {
   try {
    setLoading(true)
+
+   // Additional validation
+   if (!cycle?.id) {
+    throw new Error('ไม่พบข้อมูลรอบการจ่ายเงินเดือน กรุณาเลือกรอบใหม่')
+   }
+
    const result = await PayrollService.getPayrollSummary(cycle.id)
-   
+
    if (result.success) {
     setSummary(result.data.summary)
    } else {
-    onError('เกิดข้อผิดพลาดในการโหลดสรุปการจ่ายเงินเดือน')
+    // Provide more specific error message
+    const errorMessage = result.error || 'เกิดข้อผิดพลาดในการโหลดสรุปการจ่ายเงินเดือน'
+
+    // Check if it's a 404 error (cycle not found) - PREVENT RETRY LOOPS
+    if (errorMessage.includes('ไม่พบรอบ') || errorMessage.includes('not found') || errorMessage.includes('404')) {
+     console.warn('⚠️  Payroll cycle not found, stopping retries:', cycle.id)
+     onError('ไม่พบรอบการจ่ายเงินเดือนที่ระบุ กรุณาตรวจสอบว่ามีการคำนวณเงินเดือนแล้ว')
+     return // Don't retry for 404 errors
+    } else {
+     onError(errorMessage)
+    }
    }
   } catch (error) {
    console.error('Error loading summary:', error)
-   onError('เกิดข้อผิดพลาดในการโหลดสรุปการจ่ายเงินเดือน')
+   const errorMessage = error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการโหลดสรุปการจ่ายเงินเดือน'
+   onError(errorMessage)
   } finally {
    setLoading(false)
   }
@@ -112,12 +136,25 @@ export function PayrollSummary({ cycle, onNavigate, onError, onSuccess }: Payrol
 
  if (!summary) {
   return (
-   <Alert>
-    <AlertTriangle className="h-4 w-4" />
-    <AlertDescription>
-     ไม่พบข้อมูลสรุปการจ่ายเงินเดือน กรุณาคำนวณเงินเดือนก่อน
-    </AlertDescription>
-   </Alert>
+   <Card>
+    <CardContent className="pt-6">
+     <Alert>
+      <AlertTriangle className="h-4 w-4" />
+      <AlertDescription className="space-y-2">
+       <p className="font-medium">ไม่พบข้อมูลสรุปการจ่ายเงินเดือน</p>
+       <p className="text-sm">กรุณาดำเนินการคำนวณเงินเดือนสำหรับรอบนี้ก่อน จึงจะสามารถดูสรุปและปิดรอบได้</p>
+       <div className="pt-2">
+        <Button
+         variant="outline"
+         onClick={() => onNavigate('calculation', cycle)}
+        >
+         ไปหน้าคำนวณเงินเดือน
+        </Button>
+       </div>
+      </AlertDescription>
+     </Alert>
+    </CardContent>
+   </Card>
   )
  }
 

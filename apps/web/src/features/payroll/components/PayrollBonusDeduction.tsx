@@ -8,25 +8,13 @@ import { Loader2, Plus, AlertTriangle, CheckCircle } from 'lucide-react'
 import { PayrollEmployeeList } from './PayrollEmployeeList'
 import { BonusDeductionForm } from './BonusDeductionForm'
 import { PayrollAdjustmentPreview } from './PayrollAdjustmentPreview'
-import { 
+import {
  PayrollService,
- type PayrollEmployeeListItem, 
+ type PayrollEmployeeListItem,
  type BonusDeductionData,
  type PayrollAdjustmentPreview as AdjustmentPreviewType
 } from '../services/payroll.service'
-
-// Define PayrollCycle interface
-interface PayrollCycle {
- id: string
- name: string
- start_date: string
- end_date: string
- status: 'active' | 'completed'
- finalized_at?: string
- created_at: string
-}
-
-// Note: PayrollService is imported from '../services/payroll.service'
+import type { PayrollCycle } from '@employee-management/database'
 
 interface PayrollBonusDeductionProps {
  cycle: PayrollCycle
@@ -54,16 +42,66 @@ export function PayrollBonusDeduction({
 
  // Load employee data
  useEffect(() => {
-  loadEmployees()
- }, [cycle.id])
+  let isMounted = true
+  let isLoading = false
+  
+  if (!cycle?.id) {
+   if (isMounted) setLoading(false)
+   return
+  }
+  
+  const loadData = async () => {
+   if (!isMounted || isLoading) return
+   isLoading = true
+   await loadEmployees()
+   isLoading = false
+  }
+  
+  loadData()
+  
+  return () => { 
+   isMounted = false
+   isLoading = false
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [cycle?.id]) // Only re-run when cycle.id changes
 
  const loadEmployees = async () => {
   try {
    setLoading(true)
+   
+   console.log('🔍 PayrollBonusDeduction loadEmployees:', {
+    cycleId: cycle?.id,
+    cycleName: cycle?.cycle_name,
+    timestamp: new Date().toISOString()
+   })
+
+   // Validate cycle
+   if (!cycle?.id) {
+    throw new Error('ไม่พบข้อมูลรอบการจ่ายเงินเดือน')
+   }
+
    const response = await PayrollService.getPayrollSummary(cycle.id)
+   
+   console.log('📊 PayrollService.getPayrollSummary response:', {
+    success: response.success,
+    error: response.error,
+    hasData: !!response.data,
+    employeeCount: response.data?.summary?.employee_details?.length || 0
+   })
+   
    if (response.success && response.data) {
+    // Check if employee_details exists and has data
+    const employeeDetails = response.data.summary?.employee_details || []
+    
+    if (employeeDetails.length === 0) {
+     console.warn('⚠️  No employee details found in payroll summary')
+     onError?.('ไม่พบข้อมูลพนักงานในรอบนี้ กรุณาคำนวณเงินเดือนก่อน')
+     return
+    }
+    
     // Transform the employee_details to match PayrollEmployeeListItem interface
-    const employees = response.data.summary.employee_details.map(emp => ({
+    const employees = employeeDetails.map(emp => ({
      id: emp.id,
      user_id: emp.user_id,
      full_name: emp.employee_name,
@@ -74,12 +112,23 @@ export function PayrollBonusDeduction({
      deduction_reason: emp.deduction_reason,
      net_pay: emp.net_pay
     }))
+    
+    console.log('👥 Setting employees:', employees.length, 'employees')
     setEmployees(employees)
    } else {
-    throw new Error(response.error || 'Failed to fetch payroll details')
+    // Handle 404 specifically - PREVENT RETRY LOOPS
+    const errorMsg = response.error || 'Failed to fetch payroll details'
+    if (errorMsg.includes('ไม่พบรอบ') || errorMsg.includes('not found') || errorMsg.includes('404')) {
+     // Don't retry for 404 errors
+     console.warn('⚠️  Payroll cycle not found, stopping retries:', cycle.id)
+     onError?.('ไม่พบข้อมูลรอบการจ่ายเงินเดือน กรุณาคำนวณเงินเดือนก่อน')
+     return
+    }
+    throw new Error(errorMsg)
    }
   } catch (error) {
    const errorMessage = error instanceof Error ? error.message : 'เกิดข้อผิดพลาดในการโหลดข้อมูลพนักงาน'
+   console.error('PayrollBonusDeduction loadEmployees error:', error)
    onError?.(errorMessage)
   } finally {
    setLoading(false)
@@ -197,7 +246,7 @@ export function PayrollBonusDeduction({
       จัดการโบนัสและรายการหักเงิน
      </CardTitle>
      <CardDescription>
-      รอบการจ่ายเงินเดือน: {cycle.name} 
+      รอบการจ่ายเงินเดือน: {cycle.cycle_name}
       ({new Date(cycle.start_date).toLocaleDateString('th-TH')} - {new Date(cycle.end_date).toLocaleDateString('th-TH')})
      </CardDescription>
     </CardHeader>

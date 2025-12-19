@@ -225,10 +225,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch all payroll cycles ordered by created_at desc
+    // Fetch all payroll cycles with payroll_details count
+    // This helps UI determine if cycle has been calculated
     const { data: cycles, error: fetchError } = await serviceSupabase
       .from('payroll_cycles')
-      .select('*')
+      .select(`
+        *,
+        payroll_details(count)
+      `)
       .order('created_at', { ascending: false });
 
     if (fetchError) {
@@ -239,8 +243,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Transform data to include has_payroll_details flag
+    const cyclesWithFlags = (cycles || []).map(cycle => ({
+      ...cycle,
+      has_payroll_details: Array.isArray(cycle.payroll_details) && cycle.payroll_details.length > 0,
+      payroll_details_count: Array.isArray(cycle.payroll_details) ? cycle.payroll_details[0]?.count || 0 : 0
+    }));
+
     return NextResponse.json({
-      payroll_cycles: cycles || []
+      payroll_cycles: cyclesWithFlags
     });
 
   } catch (error) {

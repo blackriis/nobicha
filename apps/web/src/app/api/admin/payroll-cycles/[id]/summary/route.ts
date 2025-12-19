@@ -25,8 +25,15 @@ export async function GET(
       )
     }
 
-    // Admin check
-    const { data: userProfile, error: profileError } = await supabase
+    // Create service client for reliable data access (bypasses RLS)
+    const { createClient: createSimpleClient } = await import('@supabase/supabase-js');
+    const serviceSupabase = createSimpleClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    // Admin check - use service client to bypass RLS
+    const { data: userProfile, error: profileError } = await serviceSupabase
       .from('users')
       .select('role')
       .eq('id', user.id)
@@ -39,26 +46,20 @@ export async function GET(
       )
     }
 
-    // Get payroll cycle with status check
-    const { data: cycle, error: cycleError } = await supabase
+    // Get payroll cycle with status check using service role client
+    const { data: cycle, error: cycleError } = await serviceSupabase
       .from('payroll_cycles')
       .select('*')
       .eq('id', cycleId)
       .single()
 
     if (cycleError || !cycle) {
+      console.error('Payroll cycle not found:', { cycleId, error: cycleError });
       return NextResponse.json(
         { error: 'ไม่พบรอบการจ่ายเงินเดือนที่ระบุ' },
         { status: 404 }
       )
     }
-
-    // Create service client for reliable data access
-    const { createClient: createSimpleClient } = await import('@supabase/supabase-js');
-    const serviceSupabase = createSimpleClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
 
     // Get payroll details with employee information
     console.log('🔍 Getting payroll details for cycle:', cycleId);
@@ -70,10 +71,7 @@ export async function GET(
           id,
           full_name,
           employee_id,
-          branches (
-            id,
-            name
-          )
+          branch_id
         )
       `)
       .eq('payroll_cycle_id', cycleId)
@@ -94,20 +92,51 @@ export async function GET(
 
     const details = payrollDetails || []
 
+    // Fetch branch information for all unique branch IDs
+    const uniqueBranchIds = [...new Set(details.map(d => d.users.branch_id).filter(Boolean))]
+    const branchesMap = new Map()
+
+    if (uniqueBranchIds.length > 0) {
+      const { data: branches } = await serviceSupabase
+        .from('branches')
+        .select('id, name')
+        .in('id', uniqueBranchIds)
+
+      branches?.forEach(branch => {
+        branchesMap.set(branch.id, branch)
+      })
+    }
+
+    // Map branch data to payroll details
+    const detailsWithBranches = details.map(detail => ({
+      ...detail,
+      users: {
+        ...detail.users,
+        branches: branchesMap.get(detail.users.branch_id) || null
+      }
+    }))
+
     // Calculate totals and statistics
-    const totalEmployees = details.length
-    const totalBasePay = details.reduce((sum, detail) => sum + (detail.base_pay || 0), 0)
-    const totalOvertimePay = details.reduce((sum, detail) => sum + (detail.overtime_pay || 0), 0)
-    const totalBonus = details.reduce((sum, detail) => sum + (detail.bonus || 0), 0)
-    const totalDeduction = details.reduce((sum, detail) => sum + (detail.deduction || 0), 0)
-    const totalNetPay = details.reduce((sum, detail) => sum + (detail.net_pay || 0), 0)
+    const totalEmployees = detailsWithBranches.length
+    const totalBasePay = detailsWithBranches.reduce((sum, detail) => sum + (detail.base_pay || 0), 0)
+    const totalOvertimePay = detailsWithBranches.reduce((sum, detail) => sum + (detail.overtime_pay || 0), 0)
+    const totalBonus = detailsWithBranches.reduce((sum, detail) => sum + (detail.bonus || 0), 0)
+    const totalDeduction = detailsWithBranches.reduce((sum, detail) => sum + (detail.deduction || 0), 0)
+    const totalNetPay = detailsWithBranches.reduce((sum, detail) => sum + (detail.net_pay || 0), 0)
 
     // Validation checks
-    const validationIssues = []
+    const validationIssues: Array<{
+      type: string;
+      employee_name: string;
+      employee_id?: string;
+      details?: Record<string, unknown>;
+      net_pay?: number;
+      missing_fields?: string[];
+    }> = []
     let employeesWithNegativeNetPay = 0
     let employeesWithMissingData = 0
 
-    details.forEach((detail, index) => {
+    detailsWithBranches.forEach((detail) => {
       // Check for negative net pay
       if (detail.net_pay < 0) {
         employeesWithNegativeNetPay++
@@ -135,7 +164,7 @@ export async function GET(
     const canFinalize = validationIssues.length === 0 && cycle.status === 'active'
 
     // Get statistics by branch
-    const branchStats = details.reduce((acc, detail) => {
+    const branchStats = detailsWithBranches.reduce((acc, detail) => {
       const branchId = detail.users.branches?.id || 'no_branch'
       const branchName = detail.users.branches?.name || 'ไม่มีสาขา'
       
@@ -171,7 +200,7 @@ export async function GET(
     const summary = {
       cycle_info: {
         id: cycle.id,
-        name: cycle.cycle_name,
+        name: cycle.cycle_name || cycle.name, // Support both field names for compatibility
         start_date: cycle.start_date,
         end_date: cycle.end_date,
         status: cycle.status,
@@ -195,7 +224,7 @@ export async function GET(
         validation_issues: validationIssues
       },
       branch_breakdown: Object.values(branchStats),
-      employee_details: details.map(detail => ({
+      employee_details: detailsWithBranches.map(detail => ({
         id: detail.id,
         user_id: detail.user_id,
         employee_name: detail.users.full_name,

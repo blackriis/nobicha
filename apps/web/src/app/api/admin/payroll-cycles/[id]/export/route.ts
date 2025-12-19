@@ -30,8 +30,15 @@ export async function GET(
       )
     }
 
-    // Admin check
-    const { data: userProfile, error: profileError } = await supabase
+    // Create service client for reliable data access (bypasses RLS)
+    const { createClient: createSimpleClient } = await import('@supabase/supabase-js');
+    const serviceSupabase = createSimpleClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    // Admin check - use service client to bypass RLS
+    const { data: userProfile, error: profileError } = await serviceSupabase
       .from('users')
       .select('role')
       .eq('id', user.id)
@@ -44,22 +51,23 @@ export async function GET(
       )
     }
 
-    // Get payroll cycle
-    const { data: cycle, error: cycleError } = await supabase
+    // Get payroll cycle using service role client
+    const { data: cycle, error: cycleError } = await serviceSupabase
       .from('payroll_cycles')
       .select('*')
       .eq('id', cycleId)
       .single()
 
     if (cycleError || !cycle) {
+      console.error('Payroll cycle not found for export:', { cycleId, error: cycleError });
       return NextResponse.json(
         { error: 'ไม่พบรอบการจ่ายเงินเดือนที่ระบุ' },
         { status: 404 }
       )
     }
 
-    // Get payroll details with employee information
-    const { data: payrollDetails, error: detailsError } = await supabase
+    // Get payroll details with employee information using service role client
+    const { data: payrollDetails, error: detailsError } = await serviceSupabase
       .from('payroll_details')
       .select(`
         *,
@@ -77,16 +85,27 @@ export async function GET(
         )
       `)
       .eq('payroll_cycle_id', cycleId)
-      .order('users(full_name)', { ascending: true })
+      .order('created_at', { ascending: true })
 
     if (detailsError) {
+      console.error('Error fetching payroll details for export:', {
+        cycleId,
+        error: detailsError,
+        message: detailsError.message,
+        details: detailsError.details
+      });
       return NextResponse.json(
         { error: 'เกิดข้อผิดพลาดในการดึงข้อมูลรายละเอียดเงินเดือน' },
         { status: 500 }
       )
     }
 
-    const details = payrollDetails || []
+    // Sort by full_name on the server side after fetching
+    const details = (payrollDetails || []).sort((a, b) => {
+      const nameA = a.users?.full_name || '';
+      const nameB = b.users?.full_name || '';
+      return nameA.localeCompare(nameB, 'th');
+    });
 
     // Calculate totals
     const totalEmployees = details.length
@@ -123,7 +142,7 @@ export async function GET(
       let csvContent = '\uFEFF' // UTF-8 BOM for Excel compatibility
       
       // Header
-      csvContent += `รายงานเงินเดือน: ${cycle.name}\n`
+      csvContent += `รายงานเงินเดือน: ${cycle.cycle_name || cycle.name}\n`
       csvContent += `ช่วงเวลา: ${formatThaiDate(cycle.start_date)} - ${formatThaiDate(cycle.end_date)}\n`
       csvContent += `สถานะ: ${cycle.status === 'completed' ? 'ปิดรอบแล้ว' : 'ยังไม่ปิดรอบ'}\n`
       csvContent += `จำนวนพนักงาน: ${totalEmployees} คน\n`
@@ -162,10 +181,11 @@ export async function GET(
       csvContent += `หักเงินรวม,${totalDeduction}\n`
       csvContent += `เงินเดือนสุทธิรวม,${totalNetPay}\n`
 
+      const cycleName = (cycle.cycle_name || cycle.name || 'export').replace(/\s+/g, '-');
       return new Response(csvContent, {
         headers: {
           'Content-Type': 'text/csv; charset=utf-8',
-          'Content-Disposition': `attachment; filename="payroll-${cycle.name.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.csv"`,
+          'Content-Disposition': `attachment; filename="payroll-${cycleName}-${new Date().toISOString().split('T')[0]}.csv"`,
         },
       })
     } else {
@@ -173,7 +193,7 @@ export async function GET(
       const exportData = {
         cycle_info: {
           id: cycle.id,
-          name: cycle.name,
+          name: cycle.cycle_name || cycle.name,
           start_date: cycle.start_date,
           end_date: cycle.end_date,
           status: cycle.status,

@@ -1,123 +1,74 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/components/auth'
+import { adminReportsService, type ReportSummary } from '@/lib/services/admin-reports.service'
 
-interface AdminStats {
-  branchesCount: number
-  employeesCount: number
-  materialsCount: number
-  payrollCyclesCount: number
-  notificationsCount: number
+export interface AdminStatsResult {
+  stats: ReportSummary | null
   loading: boolean
   error: string | null
+  refresh: () => void
 }
 
-export function useAdminStats(): AdminStats {
-  const { user, session } = useAuth()
-  const [stats, setStats] = useState<AdminStats>({
-    branchesCount: 0,
-    employeesCount: 0,
-    materialsCount: 0,
-    payrollCyclesCount: 0,
-    notificationsCount: 0,
-    loading: true,
-    error: null
-  })
+export function useAdminStats(): AdminStatsResult {
+  const { user, isAdmin } = useAuth()
+  const isAuthenticated = !!(user && isAdmin)
 
-  useEffect(() => {
-    async function fetchStats() {
-      // Skip if no user or not admin or no session token
-      if (!user || user.profile?.role !== 'admin' || !session?.access_token) {
-        console.log('Admin stats: User not authenticated or not admin, using default values')
-        setStats(prev => ({
-          ...prev,
-          loading: false,
-          error: null
-        }))
-        return
-      }
-      try {
-        setStats(prev => ({ ...prev, loading: true, error: null }))
+  const [stats, setStats] = useState<ReportSummary | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
 
-        // Fetch all stats in parallel with proper headers including Authorization
-        const authHeaders = {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        }
-
-        const [branchesRes, employeesRes, materialsRes, payrollRes] = await Promise.all([
-          fetch('/api/admin/branches', { 
-            credentials: 'include',
-            headers: authHeaders
-          }),
-          fetch('/api/admin/employees', { 
-            credentials: 'include',
-            headers: authHeaders
-          }),
-          fetch('/api/admin/raw-materials', { 
-            credentials: 'include',
-            headers: authHeaders
-          }),
-          fetch('/api/admin/payroll-cycles', { 
-            credentials: 'include',
-            headers: authHeaders
-          })
-        ])
-
-        // Check if all requests succeeded
-        if (!branchesRes.ok || !employeesRes.ok || !materialsRes.ok || !payrollRes.ok) {
-          // Check for auth errors specifically
-          const authErrors = [branchesRes, employeesRes, materialsRes, payrollRes]
-            .filter(res => res.status === 401)
-          
-          if (authErrors.length > 0) {
-            // For auth errors, set default values instead of throwing
-            console.warn('Admin stats: Authentication required - using default values')
-            setStats({
-              branchesCount: 0,
-              employeesCount: 0,
-              materialsCount: 0,
-              payrollCyclesCount: 0,
-              notificationsCount: 0,
-              loading: false,
-              error: null // Don't show error for auth issues in sidebar
-            })
-            return
-          }
-          
-          throw new Error('Failed to fetch admin stats')
-        }
-
-        const [branchesData, employeesData, materialsData, payrollData] = await Promise.all([
-          branchesRes.json(),
-          employeesRes.json(),
-          materialsRes.json(),
-          payrollRes.json()
-        ])
-
-        setStats({
-          branchesCount: branchesData.total || branchesData.data?.length || 0,
-          employeesCount: employeesData.total || employeesData.data?.length || 0,
-          materialsCount: materialsData.total || materialsData.data?.length || 0,
-          payrollCyclesCount: payrollData.payroll_cycles?.length || payrollData.total || 0,
-          notificationsCount: 0, // TODO: Implement notifications API
-          loading: false,
-          error: null
-        })
-
-      } catch (error) {
-        console.error('Error fetching admin stats:', error)
-        setStats(prev => ({
-          ...prev,
-          loading: false,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        }))
-      }
+  const fetchStats = useCallback(async () => {
+    if (!isAuthenticated) {
+      return
     }
 
-    fetchStats()
-  }, [user])
+    try {
+      setLoading(true)
+      setError(null)
 
-  return stats
+      const result = await adminReportsService.getSummaryReport({ type: 'today' })
+
+      if (result.success && result.data) {
+        setStats(result.data)
+      } else {
+        setError(result.error || 'เกิดข้อผิดพลาดในการดึงข้อมูล')
+      }
+    } catch (err) {
+      console.error('Error fetching admin stats:', err)
+      setError('เกิดข้อผิดพลาดในการดึงข้อมูล')
+    } finally {
+      setLoading(false)
+    }
+  }, [isAuthenticated])
+
+  useEffect(() => {
+    let isMounted = true
+
+    // Only fetch if authenticated
+    if (isAuthenticated) {
+      // Fetch immediately
+      fetchStats()
+
+      // Auto-refresh disabled - users can manually refresh using the refresh button
+      // const interval = setInterval(() => {
+      //   if (isMounted) {
+      //     fetchStats()
+      //   }
+      // }, 30000)
+
+      return () => {
+        isMounted = false
+        // clearInterval(interval)
+      }
+    }
+  }, [fetchStats, refreshTrigger, isAuthenticated])
+
+  const refresh = useCallback(() => {
+    setRefreshTrigger(prev => prev + 1)
+  }, [])
+
+  return { stats, loading, error, refresh }
 }

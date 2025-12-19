@@ -38,10 +38,18 @@ export default function PayrollPage() {
 
  // Navigation handlers
  const handleNavigate = (view: PayrollView, cycle?: PayrollCycle) => {
+  // Validate cycle requirement for certain views
+  const viewsRequiringCycle: PayrollView[] = ['calculation', 'summary', 'bonus-deduction', 'export']
+
+  if (viewsRequiringCycle.includes(view) && !cycle) {
+   handleError('กรุณาเลือกรอบการจ่ายเงินเดือนก่อน')
+   return
+  }
+
   setState(prev => ({
    ...prev,
    currentView: view,
-   selectedCycle: cycle || null,
+   selectedCycle: cycle || prev.selectedCycle,
    error: null
   }))
  }
@@ -81,16 +89,16 @@ export default function PayrollPage() {
 
   switch (state.currentView) {
    case 'calculation':
-    items.push({ label: `คำนวณเงินเดือน: ${state.selectedCycle?.name || 'ไม่ระบุ'}` })
+    items.push({ label: `คำนวณเงินเดือน: ${state.selectedCycle?.cycle_name || 'ไม่ระบุ'}` })
     break
    case 'summary':
-    items.push({ label: `สรุปการจ่าย: ${state.selectedCycle?.name || 'ไม่ระบุ'}` })
+    items.push({ label: `สรุปการจ่าย: ${state.selectedCycle?.cycle_name || 'ไม่ระบุ'}` })
     break
    case 'bonus-deduction':
-    items.push({ label: `จัดการโบนัส/หักเงิน: ${state.selectedCycle?.name || 'ไม่ระบุ'}` })
+    items.push({ label: `จัดการโบนัส/หักเงิน: ${state.selectedCycle?.cycle_name || 'ไม่ระบุ'}` })
     break
    case 'export':
-    items.push({ label: `ส่งออกรายงาน: ${state.selectedCycle?.name || 'ไม่ระบุ'}` })
+    items.push({ label: `ส่งออกรายงาน: ${state.selectedCycle?.cycle_name || 'ไม่ระบุ'}` })
     break
    case 'history':
     items.push({ label: 'ประวัติรอบการจ่าย' })
