@@ -56,12 +56,16 @@ export async function GET(request: NextRequest) {
       case 'today':
         dateFilter = now.toISOString().split('T')[0]
         break
-      case 'week':
-        dateFilter = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      case 'week': {
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        dateFilter = weekAgo.toISOString().split('T')[0]
         break
-      case 'month':
-        dateFilter = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
+      }
+      case 'month': {
+        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        dateFilter = monthAgo.toISOString().split('T')[0]
         break
+      }
       case 'custom':
         dateFilter = startDate || now.toISOString().split('T')[0]
         break

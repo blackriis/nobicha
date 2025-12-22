@@ -61,7 +61,8 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
     const branchId = searchParams.get('branchId')
-    const limit = parseInt(searchParams.get('limit') || '100')
+    // Remove limit for accurate summary calculations - we need all records to calculate totals
+    // const limit = parseInt(searchParams.get('limit') || '100')
 
     // Calculate date filter
     const now = new Date()
@@ -72,12 +73,16 @@ export async function GET(request: NextRequest) {
       case 'today':
         dateFilter = now.toISOString().split('T')[0]
         break
-      case 'week':
-        dateFilter = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      case 'week': {
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        dateFilter = weekAgo.toISOString().split('T')[0]
         break
-      case 'month':
-        dateFilter = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString()
+      }
+      case 'month': {
+        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        dateFilter = monthAgo.toISOString().split('T')[0]
         break
+      }
       case 'custom':
         dateFilter = startDate || now.toISOString().split('T')[0]
         break
@@ -108,8 +113,8 @@ export async function GET(request: NextRequest) {
       materialQuery = materialQuery.gte('created_at', dateFilter)
     }
 
-    // Apply ordering and limit
-    materialQuery = materialQuery.order('created_at', { ascending: false }).limit(limit)
+    // Apply ordering (removed limit to get all records for accurate totals)
+    materialQuery = materialQuery.order('created_at', { ascending: false })
 
     const { data: materialUsageData, error } = await materialQuery
 
@@ -304,6 +309,11 @@ export async function GET(request: NextRequest) {
     // Calculate branch breakdown (materials by branch)
     const branchBreakdown = new Map()
     materialReports.forEach(usage => {
+      // Skip 'unknown' branches
+      if (usage.branch.id === 'unknown') {
+        return
+      }
+
       if (!branchBreakdown.has(usage.branch.id)) {
         branchBreakdown.set(usage.branch.id, {
           branchId: usage.branch.id,
@@ -366,9 +376,9 @@ export async function GET(request: NextRequest) {
       totalCost: materialReports.reduce((sum, usage) => sum + usage.totalCost, 0),
       totalUsageCount: materialReports.length,
       uniqueMaterials: new Set(materialReports.map(usage => usage.materialId)).size,
-      uniqueBranches: new Set(materialReports.map(usage => usage.branch.id)).size,
-      uniqueEmployees: new Set(materialReports.map(usage => usage.employee.id)).size,
-      averageCostPerUsage: materialReports.length > 0 ? 
+      uniqueBranches: new Set(materialReports.map(usage => usage.branch.id).filter(id => id !== 'unknown')).size,
+      uniqueEmployees: new Set(materialReports.map(usage => usage.employee.id).filter(id => id !== 'unknown')).size,
+      averageCostPerUsage: materialReports.length > 0 ?
         Math.round(materialReports.reduce((sum, usage) => sum + usage.totalCost, 0) / materialReports.length * 100) / 100 : 0,
       topMaterial: materialSummary.length > 0 ? materialSummary[0].materialName : null,
       topMaterialCost: materialSummary.length > 0 ? materialSummary[0].totalCost : 0
