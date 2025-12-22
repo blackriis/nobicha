@@ -29,6 +29,7 @@ import { ReportsDateFilter } from './ReportsDateFilter'
 import { ReportsSummaryCards } from './ReportsSummaryCards'
 import { EmployeeReportsSection } from './EmployeeReportsSection'
 import { BranchFilter } from './BranchFilter'
+import { SalesVsMaterialChart } from './SalesVsMaterialChart'
 
 // Import service and types
 import {
@@ -336,6 +337,15 @@ export function AdminReportsPage(): JSX.Element {
 
       <ReportsSummaryCards
        summary={summaryData}
+       isLoading={isLoading}
+      />
+     </section>
+
+     {/* Sales vs Material Cost Comparison Chart */}
+     <section id="section-comparison-chart" className="scroll-mt-20 transition-colors duration-300">
+      <SalesVsMaterialChart
+       salesData={salesData}
+       materialData={materialData}
        isLoading={isLoading}
       />
      </section>
