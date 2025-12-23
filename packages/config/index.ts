@@ -30,6 +30,14 @@ export const supabaseConfig = {
   ),
 }
 
+export const aiGatewayConfig = {
+  apiKey: optionalEnvVar(
+    process.env.AI_GATEWAY_API_KEY,
+    'AI_GATEWAY_API_KEY'
+  ),
+  baseUrl: process.env.AI_GATEWAY_BASE_URL || 'https://ai-gateway.vercel.sh/v1',
+}
+
 // Helper function to check if we're using placeholder configuration
 export function isPlaceholderConfig(): boolean {
   return supabaseConfig.url.includes('placeholder') || 
@@ -38,6 +46,7 @@ export function isPlaceholderConfig(): boolean {
 
 export const config = {
   supabase: supabaseConfig,
+  aiGateway: aiGatewayConfig,
   env: process.env.NODE_ENV || 'development',
   isPlaceholder: isPlaceholderConfig(),
 }

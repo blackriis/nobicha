@@ -108,9 +108,39 @@ export async function GET(request: NextRequest) {
       .from('material_usage')
       .select('id, material_id, time_entry_id, quantity_used, unit_cost, total_cost, notes, created_at')
 
-    // Apply date filter only if specified
+    // Apply date filter based on range type
     if (useTimeFilter && dateFilter) {
-      materialQuery = materialQuery.gte('created_at', dateFilter)
+      if (dateRange === 'today') {
+        // Today: Start of today to end of today (exclusive next day)
+        const tomorrow = new Date(now)
+        tomorrow.setDate(tomorrow.getDate() + 1)
+        const tomorrowStr = tomorrow.toISOString().split('T')[0]
+
+        materialQuery = materialQuery
+          .gte('created_at', dateFilter)
+          .lt('created_at', tomorrowStr)
+
+      } else if (dateRange === 'week' || dateRange === 'month') {
+        // Week/Month: From dateFilter to end of today (inclusive)
+        const endOfToday = new Date(now)
+        endOfToday.setHours(23, 59, 59, 999)
+
+        materialQuery = materialQuery
+          .gte('created_at', dateFilter)
+          .lte('created_at', endOfToday.toISOString())
+
+      } else if (dateRange === 'custom' && endDate) {
+        // Custom: Use both start and end dates
+        const endDateTime = new Date(endDate)
+        endDateTime.setHours(23, 59, 59, 999)
+
+        materialQuery = materialQuery
+          .gte('created_at', dateFilter)
+          .lte('created_at', endDateTime.toISOString())
+      } else {
+        // Fallback: Just use gte if no end date specified
+        materialQuery = materialQuery.gte('created_at', dateFilter)
+      }
     }
 
     // Apply ordering (removed limit to get all records for accurate totals)

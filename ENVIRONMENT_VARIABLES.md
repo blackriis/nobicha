@@ -14,6 +14,13 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.your-anon-key
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.your-service-role-key
 
 # ============================================
+# AI Gateway Configuration (Optional)
+# ============================================
+
+AI_GATEWAY_API_KEY=your-ai-gateway-api-key
+AI_GATEWAY_BASE_URL=https://ai-gateway.vercel.sh/v1  # Optional, defaults to this value
+
+# ============================================
 # Application Configuration
 # ============================================
 
@@ -115,6 +122,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-dev-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-dev-service-role-key
 NODE_ENV=development
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# AI Gateway (Optional)
+AI_GATEWAY_API_KEY=your-ai-gateway-api-key
 ```
 
 ### Production (Vercel Environment Variables)
@@ -125,6 +135,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-prod-anon-key
 SUPABASE_SERVICE_ROLE_KEY=your-prod-service-role-key
 NODE_ENV=production
 NEXT_PUBLIC_APP_URL=https://your-domain.vercel.app
+
+# AI Gateway (Optional)
+AI_GATEWAY_API_KEY=your-ai-gateway-api-key
 ```
 
 ---
