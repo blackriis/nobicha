@@ -34,8 +34,18 @@ export class CameraService {
         throw new Error('DEVICE_NOT_SUPPORTED');
       }
 
-      // Detect iOS
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      // Detect platform
+      const userAgent = navigator.userAgent;
+      const isIOS = /iPad|iPhone|iPod/.test(userAgent);
+      const isAndroid = /Android/.test(userAgent);
+      
+      // Log platform detection for debugging
+      console.log('Platform detection:', {
+        userAgent,
+        isIOS,
+        isAndroid,
+        platform: isIOS ? 'iOS' : isAndroid ? 'Android' : 'Other'
+      });
 
       // Try with ideal constraints first - Portrait orientation for selfies
       // iOS requires specific aspect ratio to force portrait mode
@@ -60,19 +70,71 @@ export class CameraService {
           },
           audio: false
         };
+        console.log('Using iOS-specific constraints');
+      } else if (isAndroid) {
+        // Android-specific constraints
+        // Android Chrome/WebView may have different capabilities
+        // Use ideal constraints (not exact) for better compatibility
+        constraints = {
+          video: {
+            facingMode,
+            aspectRatio: { ideal: 0.5625 }, // 9:16 portrait ratio (ideal, not exact)
+            width: { ideal: 720, max: 1920 },
+            height: { ideal: 1280, max: 2560 }
+          },
+          audio: false
+        };
+        console.log('Using Android-specific constraints');
       }
 
       try {
         console.log('Attempting camera access with ideal constraints:', constraints);
         this.stream = await navigator.mediaDevices.getUserMedia(constraints);
 
+        // Log stream info for debugging
+        console.log('Camera stream obtained:', {
+          streamId: this.stream.id,
+          active: this.stream.active,
+          tracks: this.stream.getVideoTracks().map(t => ({
+            id: t.id,
+            label: t.label,
+            enabled: t.enabled,
+            readyState: t.readyState,
+            settings: t.getSettings()
+          }))
+        });
+
         // Wait for tracks to be ready with longer timeout
         await this.waitForTracksReady(this.stream, 3000);
         return this.stream;
       } catch (idealError) {
         console.warn('Ideal constraints failed, trying fallback:', idealError);
+        
+        // Android-specific fallback: Some Android devices don't support aspectRatio
+        if (isAndroid) {
+          // Try without aspectRatio constraint for Android
+          constraints = {
+            video: {
+              facingMode,
+              width: { ideal: 720, min: 480 },
+              height: { ideal: 1280, min: 640 }
+            },
+            audio: false
+          };
+          console.log('Attempting Android fallback (without aspectRatio):', constraints);
+          
+          try {
+            this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+            console.log('Android fallback successful');
+            await this.waitForTracksReady(this.stream, 3000);
+            return this.stream;
+          } catch (androidFallbackError) {
+            console.warn('Android fallback also failed:', androidFallbackError);
+            // Continue to basic fallback below
+          }
+        }
 
-        // Fallback to basic constraints - Portrait orientation
+        // Basic fallback - Minimal constraints for maximum compatibility
         constraints = {
           video: {
             facingMode,
@@ -83,7 +145,7 @@ export class CameraService {
           audio: false
         };
 
-        console.log('Attempting camera access with fallback constraints:', constraints);
+        console.log('Attempting camera access with basic fallback constraints:', constraints);
         this.stream = await navigator.mediaDevices.getUserMedia(constraints);
 
         // Wait for tracks to be ready with longer timeout
@@ -118,6 +180,7 @@ export class CameraService {
     return new Promise((resolve, reject) => {
       let attempts = 0;
       const maxAttempts = timeout / 100; // 100ms intervals
+      const isAndroid = /Android/.test(navigator.userAgent);
       
       const checkTracks = () => {
         const videoTracks = stream.getVideoTracks();
@@ -131,7 +194,21 @@ export class CameraService {
         
         const hasUsableTrack = videoTracks.some(track => {
           const isUsable = track.readyState === 'live' && track.enabled && !track.muted;
-          console.log(`Track ${track.id}: readyState=${track.readyState}, enabled=${track.enabled}, muted=${track.muted}`);
+          const trackInfo = {
+            id: track.id,
+            readyState: track.readyState,
+            enabled: track.enabled,
+            muted: track.muted,
+            settings: track.getSettings()
+          };
+          
+          // Enhanced logging for Android debugging
+          if (isAndroid) {
+            console.log(`[Android] Track ${track.id}:`, trackInfo);
+          } else {
+            console.log(`Track ${track.id}:`, trackInfo);
+          }
+          
           return isUsable;
         });
         
@@ -141,6 +218,12 @@ export class CameraService {
           console.log('Video tracks are ready');
           resolve();
         } else if (attempts >= maxAttempts) {
+          // Android devices may need more time
+          if (isAndroid && attempts < maxAttempts * 2) {
+            console.log(`[Android] Extended timeout: attempt ${attempts}/${maxAttempts * 2}`);
+            setTimeout(checkTracks, 100);
+            return;
+          }
           console.warn('Timeout waiting for tracks, but proceeding anyway');
           resolve(); // ไม่ reject แต่ให้ proceed ต่อไป
         } else {
